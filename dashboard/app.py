@@ -14,26 +14,28 @@ import plotly.graph_objects as go
 from dash import Dash, dcc, html, dash_table
 import dash_bootstrap_components as dbc
 
+from pathlib import Path
 
 # Загрузка данных
 
-DATA_PATH = "data"
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_PATH = BASE_DIR / "data" / "processed"
 
-deals = pd.read_csv(f"{DATA_PATH}/deals_clean.csv")
-contacts = pd.read_csv(f"{DATA_PATH}/contacts_clean.csv")
-calls = pd.read_csv(f"{DATA_PATH}/calls_clean.csv")
-spend = pd.read_csv(f"{DATA_PATH}/spend_clean.csv")
+deals = pd.read_csv(DATA_PATH / "deals_clean.csv")
+contacts = pd.read_csv(DATA_PATH / "contacts_clean.csv")
+calls = pd.read_csv(DATA_PATH / "calls_clean.csv")
+spend = pd.read_csv(DATA_PATH / "spend_clean.csv")
 
-unit_economics_total = pd.read_csv(f"{DATA_PATH}/unit_economics_total.csv")
-unit_economics_display = pd.read_csv(f"{DATA_PATH}/unit_economics_display.csv")
-products_status = pd.read_csv(f"{DATA_PATH}/products_status.csv")
-revenue_comparison = pd.read_csv(f"{DATA_PATH}/revenue_comparison.csv")
-unit_economics_check = pd.read_csv(f"{DATA_PATH}/unit_economics_check.csv")
-growth_scenarios_display = pd.read_csv(f"{DATA_PATH}/growth_scenarios_display.csv")
-best_growth_points = pd.read_csv(f"{DATA_PATH}/best_growth_points.csv")
-experiment_hypothesis = pd.read_csv(f"{DATA_PATH}/experiment_hypothesis.csv")
-daily_ua_summary = pd.read_csv(f"{DATA_PATH}/daily_ua_summary.csv")
-experiment_summary = pd.read_csv(f"{DATA_PATH}/experiment_summary.csv")
+unit_economics_total = pd.read_csv(DATA_PATH / unit_economics_total.csv")
+unit_economics_display = pd.read_csv(DATA_PATH / unit_economics_display.csv")
+products_status = pd.read_csv(DATA_PATH / products_status.csv")
+revenue_comparison = pd.read_csv(DATA_PATH / revenue_comparison.csv")
+unit_economics_check = pd.read_csv(DATA_PATH / unit_economics_check.csv")
+growth_scenarios_display = pd.read_csv(DATA_PATH / growth_scenarios_display.csv")
+best_growth_points = pd.read_csv(DATA_PATH / best_growth_points.csv")
+experiment_hypothesis = pd.read_csv(DATA_PATH / experiment_hypothesis.csv")
+daily_ua_summary = pd.read_csv(DATA_PATH / daily_ua_summary.csv")
+experiment_summary = pd.read_csv(DATA_PATH / experiment_summary.csv")
 
 
 # Подготовка типов данных
