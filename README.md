@@ -1,57 +1,27 @@
 # Online School Performance Analytics
 
-End-to-end business analytics project for an online school: data preparation, exploratory data analysis, marketing and sales performance analysis, product analytics, unit economics, growth hypothesis and interactive dashboard.
+End-to-end business analytics project for an online school: data preparation, data audit, cleaning rules, exploratory data analysis, marketing and sales performance analysis, product analytics, unit economics, growth hypothesis and an interactive Plotly Dash dashboard.
 
 ## Project Overview
 
-This project analyzes the performance of an online school using CRM, sales, calls and marketing spend data.
+This project analyzes the performance of an online school using CRM, sales activity, calls and marketing spend data.
 
-The goal of the project is to identify key factors affecting business performance and find manageable growth opportunities across the sales funnel, marketing channels, products, payments and unit economics.
+The goal is to identify key factors affecting business performance and find manageable growth opportunities across the sales funnel, acquisition sources, sales team performance, products, payment types and unit economics.
 
-The project was originally completed as a final Data Analytics project and is being adapted for an international portfolio.
+The project is structured as a reproducible analytics workflow: from raw data audit and cleaning rules to business analysis, unit economics and dashboard-ready datasets.
 
 ## Business Questions
 
 The analysis focuses on the following questions:
 
-* How many deals are created and how many convert to payment?
-* Which marketing sources and campaigns generate deals, paid deals and revenue?
-* How effective is the sales team across deal volume, conversion and revenue?
-* Which products and payment types drive the main financial result?
-* What data quality limitations affect geography and language analysis?
-* What does unit economics show by product?
-* Which metric can be used as a manageable growth point?
-* What hypothesis can be tested within 14 days?
-
-## Project Workflow
-
-The project follows an end-to-end analytics workflow:
-
-1. Data audit and data quality assessment
-2. Data cleaning and preparation
-3. Business rules definition
-4. Descriptive statistics and EDA
-5. Sales funnel and time series analysis
-6. Marketing source and campaign analysis
-7. Sales team performance analysis
-8. Product, payment and education type analysis
-9. Geography and language data quality analysis
-10. Financial analysis
-11. Unit economics calculation
-12. Growth point selection and HADI hypothesis
-13. Interactive dashboard development
-
-## Tools and Technologies
-
-* Python
-* pandas
-* numpy
-* plotly
-* Dash
-* dash-bootstrap-components
-* Google Colab
-* PyCharm
-* GitHub
+- How many deals are created and how many convert to payment?
+- Which marketing sources and campaigns generate deals, paid deals and revenue?
+- How effective is the sales team across deal volume, conversion and revenue?
+- Which products and payment types drive the main financial result?
+- What data quality limitations affect geography and language-level analysis?
+- What does unit economics show at the project and product level?
+- Which metric can be used as a manageable growth point?
+- What hypothesis can be tested within 14 days?
 
 ## Repository Structure
 
@@ -59,96 +29,239 @@ The project follows an end-to-end analytics workflow:
 online-school-performance-analytics/
 ├── README.md
 ├── requirements.txt
-├── notebooks/
 ├── dashboard/
+│   └── app.py
 ├── data/
+│   ├── raw/
+│   │   ├── calls_raw.xlsx
+│   │   ├── contacts_raw.xlsx
+│   │   ├── deals_raw.xlsx
+│   │   └── spend_raw.xlsx
 │   └── processed/
+│       ├── calls_clean.csv
+│       ├── contacts_clean.csv
+│       ├── deals_clean.csv
+│       ├── spend_clean.csv
+│       └── unit economics and dashboard-ready output tables
 ├── docs/
+│   ├── data_dictionary.xlsx
+│   ├── data_dictionary.pdf
+│   ├── cleaning_rules.docx
+│   └── cleaning_rules.pdf
+├── images/
+│   └── dashboard screenshots
+├── notebooks/
+│   ├── 01_data_audit.ipynb
+│   ├── 02_data_cleaning.ipynb
+│   ├── 03_eda_business_analysis.ipynb
+│   ├── 04_unit_economics.ipynb
+│   └── project_util.py
 └── reports/
 ```
 
+## Tools and Technologies
+
+- Python
+- pandas
+- numpy
+- matplotlib
+- plotly
+- Dash
+- dash-bootstrap-components
+- openpyxl
+- Jupyter Notebook
+- PyCharm
+- GitHub
+
 ## Data
 
-The project uses cleaned and processed datasets prepared during the data cleaning stage.
+The repository includes anonymized raw datasets and processed datasets used for the analysis.
 
-Main processed files include:
+The raw data does not contain customer names, emails or phone numbers. CRM-style IDs are preserved because they are required for relationship checks between tables. Synthetic manager names are used as analytical categories.
 
-* `deals_clean.csv`
-* `contacts_clean.csv`
-* `calls_clean.csv`
-* `spend_clean.csv`
+Main raw files:
 
-Additional output tables are used for unit economics, growth scenarios and dashboard visualizations.
+- `calls_raw.xlsx`
+- `contacts_raw.xlsx`
+- `deals_raw.xlsx`
+- `spend_raw.xlsx`
+
+Main processed files:
+
+- `calls_clean.csv`
+- `contacts_clean.csv`
+- `deals_clean.csv`
+- `spend_clean.csv`
+
+Additional processed CSV files are generated by the unit economics notebook and used by the dashboard.
 
 ## Documentation
 
-The `docs/` folder contains supporting project documentation:
+The `docs/` folder contains supporting documentation:
 
-- `data_dictionary_en.xlsx` — editable data dictionary with field descriptions, data types, valid values, cleaning rules and analysis usage notes.
-- `data_dictionary_en.pdf` — PDF version for quick review.
+- `data_dictionary.xlsx` — editable data dictionary with field descriptions, data types, valid values, cleaning rules and analysis usage notes.
+- `data_dictionary.pdf` — PDF version of the data dictionary for quick review.
+- `cleaning_rules.docx` — editable data cleaning rules document.
+- `cleaning_rules.pdf` — PDF version of the cleaning rules.
+
+## Project Workflow
+
+The project follows an end-to-end analytics workflow:
+
+1. Data dictionary and business rules preparation
+2. Data audit and data quality assessment
+3. Cleaning rules definition
+4. Data cleaning and preparation
+5. Descriptive statistics and EDA
+6. Sales funnel and time series analysis
+7. Marketing source and campaign analysis
+8. Sales team performance analysis
+9. Product, payment and education type analysis
+10. Geography and language data quality review
+11. Financial analysis
+12. Unit economics calculation
+13. Growth point selection and HADI hypothesis
+14. Interactive dashboard development
+
+## Notebooks
+
+| Notebook | Purpose |
+|---|---|
+| `01_data_audit.ipynb` | Initial data audit, structure review, missing values, duplicates, table relationship checks and preliminary cleaning strategy. |
+| `02_data_cleaning.ipynb` | Data cleaning based on documented rules, generation of cleaned datasets for further analysis. |
+| `03_eda_business_analysis.ipynb` | Exploratory and business analysis: funnel, marketing, sales, products, payments, geography and revenue. |
+| `04_unit_economics.ipynb` | Unit economics calculation, product-level metrics, growth point selection and HADI hypothesis. |
 
 ## Key Business Rules
 
 Several business rules were defined before analysis:
 
-* The main analysis table is `deals_clean.csv`.
-* A paid deal is defined as `Stage = Payment Done`.
-* Actual revenue is calculated using `Initial Amount Paid` only for paid deals.
-* `Offer Total Amount` is not treated as actual payment revenue.
-* `Source` is used as the main level for marketing analysis.
-* `Campaign` is used as an additional level of marketing detail.
-* Product, payment type and education type analysis is mainly based on paid deals.
+- The main analysis table is `deals_clean.csv`.
+- A paid deal is defined as `Stage = Payment Done`.
+- Actual revenue is calculated using `Initial Amount Paid` only for paid deals.
+- `Offer Total Amount` is treated as potential contract value, not actual revenue.
+- Deals with `Stage = Payment Done` and missing payment amount are included in payment conversion, but excluded from revenue and average check calculations.
+- `Source` is used as the main level for marketing analysis.
+- `Campaign`, `Term`, `Content`, `AdGroup` and `Ad` are used as additional marketing details, not as the only matching keys.
+- Product, payment type and education type analysis is mainly based on paid deals.
+- Rows with data quality flags are not removed automatically; they are excluded only from the calculations where the issue is critical.
+
+## Key Metrics
+
+| Metric | Value |
+|---|---:|
+| Total deals | 21,593 |
+| Paid deals | 858 |
+| Payment conversion | 3.97% |
+| Actual revenue | 978,651.00 |
+| Average check | 1,160.91 |
+| Revenue per deal | 45.32 |
+| Marketing spend | 149,223.45 |
+| CPL | 6.91 |
+| CAC | 173.92 |
+| Unit economics lead base (UA) | 18,548 |
+| Unit economics clients (B) | 839 |
+| Lead-to-client conversion (C1) | 4.52% |
+| Calculated revenue (Revenue_I) | 3,374,357.12 |
+| Contribution margin (CM) | 3,224,833.67 |
+| ROMI | 2,156.74% |
+| HADI experiment duration | 11 days |
 
 ## Key Findings
 
-Main findings will be summarized in the final portfolio version of this README.
-
-Current key insights include:
-
-* The online school has a large deal flow, but payment conversion is low.
-* A high share of deals is lost before payment.
-* Facebook Ads, Google Ads, Organic and SMM are key sources of business results.
-* Digital Marketing is the strongest product by paid deals and revenue.
-* Payment type analysis is limited by a high share of unknown values.
-* Geography and German language level analysis is limited by missing data.
-* Unit economics is positive at the aggregate level.
-* C1, conversion from lead to customer, was selected as the main growth metric.
-* The proposed HADI hypothesis can be tested within 14 days.
+- The online school has a large deal flow: 21,593 deals were created, but only 858 deals reached payment.
+- Overall payment conversion is low at 3.97%, so improving the lead-to-payment funnel is the main business opportunity.
+- The main revenue-generating acquisition sources are Facebook Ads, Organic, Google Ads and SMM.
+- Marketing unit economics is positive at the aggregate level: total marketing spend is 149,223.45, while actual revenue from paid deals is 978,651.00.
+- Digital Marketing is the strongest product by paid deals and revenue. It accounts for the largest share of the product-level business result.
+- Payment type analysis is limited by a high share of unknown values, so payment-type conclusions should be interpreted carefully.
+- Geography and German language-level analysis is limited by missing data: around 90% of city values and around 98% of language-level values are missing.
+- Product-level unit economics is positive for the products with clients in the calculation base: Digital Marketing, UX/UI Design and Web Developer.
+- C1, the lead-to-client conversion metric, was selected as the main manageable growth point.
+- The proposed HADI hypothesis tests whether an updated first-contact and follow-up script can increase C1 by at least 10%. Based on the average lead flow, the experiment can be run within 11 days, which fits the 14-day validation window.
 
 ## Dashboard
 
-An interactive dashboard was built with Plotly Dash.
+An interactive dashboard was built with Plotly Dash. It includes five main sections:
 
-The dashboard includes five main sections:
+- Overview
+- Marketing
+- Sales
+- Products
+- Unit Economics
 
-* Overview
-* Marketing
-* Sales
-* Products
-* Unit Economics
+The dashboard uses cleaned and dashboard-ready CSV files from `data/processed/`.
 
-To run the dashboard locally:
+### Dashboard Preview
+
+#### Overview
+
+![Dashboard Overview](images/dashboard_overview_kpi_funnel.png)
+
+#### Marketing
+
+![Dashboard Marketing](images/dashboard_marketing_sources.png)
+
+#### Sales
+
+![Dashboard Sales](images/dashboard_sales_managers.png)
+
+#### Products
+
+![Dashboard Products](images/dashboard_products_overview.png)
+
+#### Unit Economics
+
+![Dashboard Unit Economics](images/dashboard_unit_economics_overall.png)
+
+#### Growth Point and HADI Hypothesis
+
+![Dashboard Growth Point](images/dashboard_unit_economics_growth_point.png)
+
+## How to Run the Project
+
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
+```
+
+Run the dashboard locally:
+
+```bash
 python dashboard/app.py
 ```
 
-## Reports
+Then open the local Dash URL in a browser, usually:
 
-The repository includes final project materials in the `reports/` folder:
+```text
+http://127.0.0.1:8050/
+```
 
-* full analytical report;
-* project presentation.
+To reproduce the data pipeline, run notebooks in this order:
+
+```text
+01_data_audit.ipynb
+02_data_cleaning.ipynb
+03_eda_business_analysis.ipynb
+04_unit_economics.ipynb
+```
 
 ## Project Status
 
-This repository is currently being adapted from a final school project into an English-language portfolio project for the international market.
+The English portfolio version includes:
 
-Next improvements:
+- anonymized raw data;
+- processed datasets;
+- data dictionary;
+- cleaning rules;
+- four validated notebooks;
+- helper Python functions;
+- interactive English dashboard;
+- dashboard screenshots.
 
-* translate dashboard interface into English;
-* clean and adapt notebooks for portfolio use;
-* add dashboard screenshots;
-* improve README with final visuals and concise business conclusions;
-* prepare a short LinkedIn project summary.
+Potential next improvements:
+
+- prepare a concise English analytical report;
+- add a Notion portfolio case page;
+- prepare a short LinkedIn project summary.
