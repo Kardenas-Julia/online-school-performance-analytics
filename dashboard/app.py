@@ -1,9 +1,11 @@
-# Dashboard для финального проекта по Data Analytics
-# Анализ онлайн-школы: продажи, маркетинг, продукты и UNIT-экономика
+# Dashboard for the final Data Analytics project
+# Online school performance analysis: sales, marketing, products and unit economics
 #
-# Данные предварительно очищены в notebook 02_data_cleaning.
-# Основная таблица анализа — deals_clean.csv.
-# Оплаченная сделка определяется по Stage = Payment Done.
+# The data is cleaned in 02_data_cleaning.ipynb.
+# The main analytical table is deals_clean.csv.
+# A paid deal is defined by the business rule Stage = Payment Done.
+
+from pathlib import Path
 
 import pandas as pd
 import numpy as np
@@ -14,9 +16,8 @@ import plotly.graph_objects as go
 from dash import Dash, dcc, html, dash_table
 import dash_bootstrap_components as dbc
 
-from pathlib import Path
 
-# Загрузка данных
+# Data loading
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_PATH = BASE_DIR / "data" / "processed"
@@ -26,19 +27,57 @@ contacts = pd.read_csv(DATA_PATH / "contacts_clean.csv")
 calls = pd.read_csv(DATA_PATH / "calls_clean.csv")
 spend = pd.read_csv(DATA_PATH / "spend_clean.csv")
 
-unit_economics_total = pd.read_csv(DATA_PATH / unit_economics_total.csv")
-unit_economics_display = pd.read_csv(DATA_PATH / unit_economics_display.csv")
-products_status = pd.read_csv(DATA_PATH / products_status.csv")
-revenue_comparison = pd.read_csv(DATA_PATH / revenue_comparison.csv")
-unit_economics_check = pd.read_csv(DATA_PATH / unit_economics_check.csv")
-growth_scenarios_display = pd.read_csv(DATA_PATH / growth_scenarios_display.csv")
-best_growth_points = pd.read_csv(DATA_PATH / best_growth_points.csv")
-experiment_hypothesis = pd.read_csv(DATA_PATH / experiment_hypothesis.csv")
-daily_ua_summary = pd.read_csv(DATA_PATH / daily_ua_summary.csv")
-experiment_summary = pd.read_csv(DATA_PATH / experiment_summary.csv")
+unit_economics_total = pd.read_csv(DATA_PATH / "unit_economics_total.csv")
+unit_economics_display = pd.read_csv(DATA_PATH / "unit_economics_display.csv")
+products_status = pd.read_csv(DATA_PATH / "products_status.csv")
+revenue_comparison = pd.read_csv(DATA_PATH / "revenue_comparison.csv")
+unit_economics_check = pd.read_csv(DATA_PATH / "unit_economics_check.csv")
+growth_scenarios_display = pd.read_csv(DATA_PATH / "growth_scenarios_display.csv")
+best_growth_points = pd.read_csv(DATA_PATH / "best_growth_points.csv")
+experiment_hypothesis = pd.read_csv(DATA_PATH / "experiment_hypothesis.csv")
+daily_ua_summary = pd.read_csv(DATA_PATH / "daily_ua_summary.csv")
+experiment_summary = pd.read_csv(DATA_PATH / "experiment_summary.csv")
 
 
-# Подготовка типов данных
+# Compatibility rename for supporting files that may still contain Russian display columns
+
+products_status = products_status.rename(columns={
+    "Product": "Product",
+    "Есть клиенты в расчётной базе": "Has Clients in Calculation Base",
+    "Статус": "Status"
+})
+
+revenue_comparison = revenue_comparison.rename(columns={
+    "Метрика": "Metric",
+    "Metric": "Metric",
+    "Значение": "Value"
+})
+
+unit_economics_check = unit_economics_check.rename(columns={
+    "Metric": "Metric",
+    "Метрика": "Metric",
+    "Description": "Description",
+    "Значение": "Value"
+})
+
+experiment_hypothesis = experiment_hypothesis.rename(columns={
+    "Metric": "Metric",
+    "Метрика": "Metric",
+    "Значение": "Value"
+})
+
+experiment_summary = experiment_summary.rename(columns={
+    "Базовая C1 (p), %": "Baseline C1 (p), %",
+    "Целевая C1 (x), %": "Target C1 (x), %",
+    "Sample Size per Group (n)": "Sample Size per Group (n)",
+    "Общая выборка (2*n)": "Total Sample (2*n)",
+    "Средний UA в день": "Average Daily UA",
+    "Длительность эксперимента, дней": "Experiment Duration, Days",
+    "Can be run within 14 days": "Can Run in 14 Days"
+})
+
+
+# Data type preparation
 
 date_columns_deals = [
     "Created Time",
@@ -79,7 +118,7 @@ for col in date_columns_spend:
 if "SLA" in deals.columns:
     deals["SLA"] = pd.to_timedelta(deals["SLA"], errors="coerce")
 
-# Общие настройки стиля и вспомогательные функции
+# General style settings and helper functions
 
 COLORS = {
     "background": "#F7F8FA",
@@ -108,6 +147,9 @@ PAYMENT_TYPE_COLORS = {
     "One Payment": "#F2994A",
     "Reservation": "#BDBDBD"
 }
+
+# Keep charts compact so each subtab fits better into a 16:9 screen
+DEFAULT_CHART_HEIGHT = 360
 
 def safe_divide(numerator, denominator):
     return np.where(
@@ -167,8 +209,8 @@ def clean_numeric_value(value):
 
 def convert_possible_numeric_columns(df):
     """
-    Приводит к числам те object-колонки, где большинство значений можно преобразовать.
-    Это нужно для CSV из UNIT economics, где числа могли сохраниться как текст.
+    Converts object columns to numeric when most values can be parsed.
+    This is needed for unit economics CSV files where numbers may be stored as text.
     """
     result = df.copy()
 
@@ -177,8 +219,8 @@ def convert_possible_numeric_columns(df):
         "Scenario",
         "Status",
         "Metric",
-        "Показатель",
-        "Описание",
+        "Metric",
+        "Description",
         "Can Run in 14 Days"
     ]
 
@@ -212,7 +254,7 @@ def find_col(df, possible_names):
     return None
 
 
-def create_empty_figure(title, message="Нет данных для отображения"):
+def create_empty_figure(title, message="No data to display"):
     fig = go.Figure()
     fig.add_annotation(
         text=message,
@@ -229,7 +271,8 @@ def create_empty_figure(title, message="Нет данных для отобра�
         paper_bgcolor=COLORS["card"],
         plot_bgcolor=COLORS["card"],
         font=dict(color=COLORS["text"]),
-        margin=dict(l=40, r=40, t=80, b=40)
+        margin=dict(l=40, r=40, t=75, b=40),
+        height=DEFAULT_CHART_HEIGHT
     )
     return fig
 
@@ -258,7 +301,8 @@ def apply_chart_layout(fig, title=None):
                 size=12
             )
         ),
-        margin=dict(l=50, r=40, t=80, b=50)
+        margin=dict(l=50, r=40, t=75, b=45),
+        height=DEFAULT_CHART_HEIGHT
     )
 
     fig.update_xaxes(
@@ -286,7 +330,7 @@ def apply_legend_style(fig, mode="top"):
                 title_text="",
                 font=dict(size=10)
             ),
-            margin=dict(l=50, r=40, t=120, b=50)
+            margin=dict(l=50, r=40, t=105, b=45)
         )
 
     elif mode == "right":
@@ -306,7 +350,7 @@ def apply_legend_style(fig, mode="top"):
     elif mode == "off":
         fig.update_layout(
             showlegend=False,
-            margin=dict(l=50, r=40, t=80, b=50)
+            margin=dict(l=50, r=40, t=75, b=45)
         )
 
     return fig
@@ -350,12 +394,13 @@ def create_kpi_card(title, value, subtitle=None):
     )
 
 
-def create_chart_card(figure):
+def create_chart_card(figure, graph_height=DEFAULT_CHART_HEIGHT):
     return dbc.Card(
         dbc.CardBody([
             dcc.Graph(
                 figure=figure,
-                config={"displayModeBar": True}
+                config={"displayModeBar": True},
+                style={"height": f"{graph_height}px"}
             )
         ]),
         style={
@@ -434,9 +479,9 @@ def create_section_header(title, description):
     )
 
 
-# Базовые бизнес-правила для расчётов
+# Core business rules for calculations
 
-# Считаю оплату только по Stage = Payment Done — это основное бизнес-правило проекта
+# Payment is defined only by Stage = Payment Done, which is the main business rule of the project
 deals["Is Paid"] = deals["Stage"] == "Payment Done"
 
 deals["Revenue Paid"] = np.where(
@@ -448,7 +493,7 @@ deals["Revenue Paid"] = np.where(
 paid_deals = deals[deals["Is Paid"]].copy()
 
 
-# Вкладка "Обзор"
+# Overview tab
 
 total_deals = deals.shape[0]
 paid_deals_count = paid_deals.shape[0]
@@ -461,12 +506,12 @@ revenue_per_deal = revenue / total_deals if total_deals > 0 else np.nan
 
 overview_kpi_cards = dbc.Row(
     [
-        dbc.Col(create_kpi_card("Всего сделок", format_int(total_deals), "Все сделки в Deals"), md=2),
-        dbc.Col(create_kpi_card("Оплаченные сделки", format_int(paid_deals_count), "Stage = Payment Done"), md=2),
-        dbc.Col(create_kpi_card("Конверсия в оплату", format_percent(payment_conversion), "Paid Deals / Total Deals"), md=2),
-        dbc.Col(create_kpi_card("Фактическая выручка", format_money(revenue), "Initial Amount Paid"), md=2),
-        dbc.Col(create_kpi_card("Средний чек", format_money(avg_revenue), "Среднее по оплатам"), md=2),
-        dbc.Col(create_kpi_card("Выручка на сделку", format_money(revenue_per_deal), "Revenue / Total Deals"), md=2)
+        dbc.Col(create_kpi_card("Total Deals", format_int(total_deals), "All records in Deals"), md=2),
+        dbc.Col(create_kpi_card("Paid Deals", format_int(paid_deals_count), "Stage = Payment Done"), md=2),
+        dbc.Col(create_kpi_card("Payment Conversion", format_percent(payment_conversion), "Paid Deals / Total Deals"), md=2),
+        dbc.Col(create_kpi_card("Actual Revenue", format_money(revenue), "Initial Amount Paid"), md=2),
+        dbc.Col(create_kpi_card("Average Check", format_money(avg_revenue), "Average across paid deals"), md=2),
+        dbc.Col(create_kpi_card("Revenue per Deal", format_money(revenue_per_deal), "Revenue / Total Deals"), md=2)
     ],
     className="g-3",
     style={"marginBottom": "24px"}
@@ -493,9 +538,9 @@ stage_fig = px.bar(
     orientation="h",
     text="Share, %",
     labels={
-        "Deals_Count": "Количество сделок",
-        "Stage": "Стадия",
-        "Share, %": "Доля, %"
+        "Deals_Count": "Deals Count",
+        "Stage": "Stage",
+        "Share, %": "Share, %"
     },
     color_discrete_sequence=[COLORS["primary"]]
 )
@@ -505,13 +550,13 @@ stage_fig.update_traces(
     textposition="outside",
     hovertemplate=(
         "<b>%{y}</b><br>"
-        "Количество сделок: %{x}<br>"
-        "Доля: %{text:.2f}%<extra></extra>"
+        "Deals Count: %{x}<br>"
+        "Share: %{text:.2f}%<extra></extra>"
     )
 )
 
 stage_fig.update_layout(yaxis={"categoryorder": "total ascending"})
-stage_fig = apply_chart_layout(stage_fig, "Воронка продаж по стадиям")
+stage_fig = apply_chart_layout(stage_fig, "Sales Funnel by Stage")
 
 
 deals["Created Month"] = deals["Created Time"].dt.to_period("M").dt.to_timestamp()
@@ -536,10 +581,10 @@ monthly_deals_fig.add_trace(
     go.Bar(
         x=monthly_deals["Created Month"],
         y=monthly_deals["Deals_Count"],
-        name="Созданные сделки",
+        name="Created Deals",
         marker_color=COLORS["primary"],
         opacity=0.85,
-        hovertemplate="Месяц: %{x|%Y-%m}<br>Созданные сделки: %{y}<extra></extra>"
+        hovertemplate="Month: %{x|%Y-%m}<br>Created Deals: %{y}<extra></extra>"
     )
 )
 
@@ -547,20 +592,20 @@ monthly_deals_fig.add_trace(
     go.Scatter(
         x=monthly_deals["Created Month"],
         y=monthly_deals["Paid_Deals"],
-        name="Оплаченные сделки",
+        name="Paid Deals",
         mode="lines+markers",
         line=dict(color=COLORS["accent"], width=3),
         marker=dict(size=8),
         yaxis="y2",
-        hovertemplate="Месяц: %{x|%Y-%m}<br>Оплаченные сделки: %{y}<extra></extra>"
+        hovertemplate="Month: %{x|%Y-%m}<br>Paid Deals: %{y}<extra></extra>"
     )
 )
 
 monthly_deals_fig.update_layout(
-    xaxis=dict(title="Месяц"),
-    yaxis=dict(title="Количество созданных сделок"),
+    xaxis=dict(title="Month"),
+    yaxis=dict(title="Created Deals"),
     yaxis2=dict(
-        title="Количество оплаченных сделок",
+        title="Paid Deals",
         overlaying="y",
         side="right"
     )
@@ -568,7 +613,7 @@ monthly_deals_fig.update_layout(
 
 monthly_deals_fig = apply_chart_layout(
     monthly_deals_fig,
-    "Динамика созданных и оплаченных сделок по месяцам"
+    "Monthly Dynamics of Created and Paid Deals"
 )
 
 monthly_conversion_fig = px.line(
@@ -577,20 +622,20 @@ monthly_conversion_fig = px.line(
     y="Payment Conversion, %",
     markers=True,
     labels={
-        "Created Month": "Месяц",
-        "Payment Conversion, %": "Конверсия в оплату, %"
+        "Created Month": "Month",
+        "Payment Conversion, %": "Payment Conversion, %"
     }
 )
 
 monthly_conversion_fig.update_traces(
     line=dict(color=COLORS["accent"], width=3),
     marker=dict(size=8),
-    hovertemplate="Месяц: %{x|%Y-%m}<br>Конверсия в оплату: %{y:.2f}%<extra></extra>"
+    hovertemplate="Month: %{x|%Y-%m}<br>Payment Conversion: %{y:.2f}%<extra></extra>"
 )
 
 monthly_conversion_fig = apply_chart_layout(
     monthly_conversion_fig,
-    "Динамика конверсии в оплату по месяцам"
+    "Monthly Payment Conversion Dynamics"
 )
 
 
@@ -609,12 +654,12 @@ top_sources_revenue_fig = px.bar(
     x="Revenue",
     y="Source",
     orientation="h",
-    labels={"Revenue": "Выручка", "Source": "Источник"},
+    labels={"Revenue": "Revenue", "Source": "Source"},
     color_discrete_sequence=[COLORS["primary"]]
 )
 
 top_sources_revenue_fig.update_layout(yaxis={"categoryorder": "total ascending"})
-top_sources_revenue_fig = apply_chart_layout(top_sources_revenue_fig, "Топ источников по выручке")
+top_sources_revenue_fig = apply_chart_layout(top_sources_revenue_fig, "Top Sources by Revenue")
 
 
 top_products_revenue = (
@@ -635,15 +680,15 @@ top_products_revenue_fig = px.bar(
     x="Revenue",
     y="Product",
     orientation="h",
-    labels={"Revenue": "Выручка", "Product": "Продукт"},
+    labels={"Revenue": "Revenue", "Product": "Product"},
     color_discrete_sequence=[COLORS["accent"]]
 )
 
 top_products_revenue_fig.update_layout(yaxis={"categoryorder": "total ascending"})
-top_products_revenue_fig = apply_chart_layout(top_products_revenue_fig, "Топ продуктов по выручке")
+top_products_revenue_fig = apply_chart_layout(top_products_revenue_fig, "Top Products by Revenue")
 
 
-# Вкладка "Маркетинг"
+# Marketing tab
 
 source_summary = (
     deals
@@ -714,12 +759,12 @@ marketing_cac = total_spend / marketing_paid_deals if marketing_paid_deals > 0 e
 
 marketing_kpi_cards = dbc.Row(
     [
-        dbc.Col(create_kpi_card("Расходы", format_money(total_spend), "Сумма рекламных расходов"), md=2),
-        dbc.Col(create_kpi_card("Выручка", format_money(marketing_revenue), "Выручка по источникам"), md=2),
-        dbc.Col(create_kpi_card("Оплаченные сделки", format_int(marketing_paid_deals), "Количество оплат"), md=2),
-        dbc.Col(create_kpi_card("Конверсия", format_percent(marketing_conversion), "Оплаты / Сделки"), md=2),
-        dbc.Col(create_kpi_card("CPL", format_money(marketing_cpl), "Стоимость одной заявки"), md=2),
-        dbc.Col(create_kpi_card("CAC", format_money(marketing_cac), "Стоимость одного клиента"), md=2)
+        dbc.Col(create_kpi_card("Spend", format_money(total_spend), "Total Marketing Spend"), md=2),
+        dbc.Col(create_kpi_card("Revenue", format_money(marketing_revenue), "Revenue by Source"), md=2),
+        dbc.Col(create_kpi_card("Paid Deals", format_int(marketing_paid_deals), "Paid Deals Count"), md=2),
+        dbc.Col(create_kpi_card("Conversion", format_percent(marketing_conversion), "Paid Deals / Deals"), md=2),
+        dbc.Col(create_kpi_card("CPL", format_money(marketing_cpl), "Cost per Lead"), md=2),
+        dbc.Col(create_kpi_card("CAC", format_money(marketing_cac), "Customer Acquisition Cost"), md=2)
     ],
     className="g-3",
     style={"marginBottom": "24px"}
@@ -743,10 +788,10 @@ source_bubble_fig = px.scatter(
     custom_data=["Paid_Deals", "Revenue", "CPL", "CAC"],
     size_max=55,
     labels={
-        "Deals_Count": "Количество сделок",
-        "Payment Conversion, %": "Конверсия в оплату, %",
-        "Revenue": "Выручка",
-        "Source": "Источник"
+        "Deals_Count": "Deals Count",
+        "Payment Conversion, %": "Payment Conversion, %",
+        "Revenue": "Revenue",
+        "Source": "Source"
     }
 )
 
@@ -757,16 +802,16 @@ source_bubble_fig.update_traces(
     cliponaxis=False,
     hovertemplate=(
         "<b>%{hovertext}</b><br>"
-        "Количество сделок: %{x}<br>"
-        "Оплаченные сделки: %{customdata[0]}<br>"
-        "Конверсия: %{y:.2f}%<br>"
-        "Выручка: %{customdata[1]:,.2f}<br>"
+        "Deals Count: %{x}<br>"
+        "Paid Deals: %{customdata[0]}<br>"
+        "Conversion: %{y:.2f}%<br>"
+        "Revenue: %{customdata[1]:,.2f}<br>"
         "CPL: %{customdata[2]:,.2f}<br>"
         "CAC: %{customdata[3]:,.2f}<extra></extra>"
     )
 )
 
-source_bubble_fig = apply_chart_layout(source_bubble_fig, "Источники: объём сделок, конверсия и выручка")
+source_bubble_fig = apply_chart_layout(source_bubble_fig, "Sources: Deal Volume, Conversion and Revenue")
 source_bubble_fig.update_layout(showlegend=False, margin=dict(l=50, r=40, t=90, b=50))
 spend_revenue_plot = source_marketing_summary[source_marketing_summary["Spend"] > 0].copy()
 
@@ -781,10 +826,10 @@ spend_revenue_fig = px.scatter(
     custom_data=["Deals_Count", "Paid_Deals", "Spend", "Revenue", "CPL", "CAC", "Revenue / Spend"],
     size_max=50,
     labels={
-        "Spend": "Расходы",
-        "Revenue": "Выручка",
-        "Deals_Count": "Количество сделок",
-        "Source": "Источник"
+        "Spend": "Spend",
+        "Revenue": "Revenue",
+        "Deals_Count": "Deals Count",
+        "Source": "Source"
     }
 )
 
@@ -795,13 +840,13 @@ spend_revenue_fig.update_traces(
     cliponaxis=False,
     hovertemplate=(
         "<b>%{hovertext}</b><br>"
-        "Расходы: %{customdata[2]:,.2f}<br>"
-        "Выручка: %{customdata[3]:,.2f}<br>"
-        "Сделки: %{customdata[0]}<br>"
-        "Оплаты: %{customdata[1]}<br>"
+        "Spend: %{customdata[2]:,.2f}<br>"
+        "Revenue: %{customdata[3]:,.2f}<br>"
+        "Deals: %{customdata[0]}<br>"
+        "Paid Deals: %{customdata[1]}<br>"
         "CPL: %{customdata[4]:,.2f}<br>"
         "CAC: %{customdata[5]:,.2f}<br>"
-        "Выручка / Расходы: %{customdata[6]:.2f}<extra></extra>"
+        "Revenue / Spend: %{customdata[6]:.2f}<extra></extra>"
     )
 )
 
@@ -829,7 +874,7 @@ if not spend_revenue_plot.empty:
         bgcolor="rgba(255,255,255,0.75)"
     )
 
-spend_revenue_fig = apply_chart_layout(spend_revenue_fig, "Эффективность источников: расходы, выручка и сделки")
+spend_revenue_fig = apply_chart_layout(spend_revenue_fig, "Source Performance: Spend, Revenue and Deals")
 spend_revenue_fig.update_layout(showlegend=False, margin=dict(l=50, r=40, t=90, b=50))
 
 
@@ -867,17 +912,17 @@ if "Quality" in deals.columns:
         y="Source",
         orientation="h",
         labels={
-            "Quality Lead Share, %": "Доля качественных лидов, %",
-            "Source": "Источник"
+            "Quality Lead Share, %": "Quality Lead Share, %",
+            "Source": "Source"
         },
         color_discrete_sequence=[COLORS["success"]]
     )
 
     quality_fig.update_layout(yaxis={"categoryorder": "total ascending"})
-    quality_fig = apply_chart_layout(quality_fig, "Качество лидов по источникам")
+    quality_fig = apply_chart_layout(quality_fig, "Lead Quality by Source")
 
 else:
-    quality_fig = create_empty_figure("Качество лидов по источникам", "Поле Quality не найдено")
+    quality_fig = create_empty_figure("Lead Quality by Source", "Quality field not found")
 
 
 if "Campaign" in deals.columns:
@@ -911,7 +956,7 @@ else:
         "Revenue": []
     })
 
-# Кампании добавляю как дополнительную детализацию: основной уровень маркетинга — Source
+# Campaigns are added as an additional detail; Source remains the main marketing analysis level
 
 if not campaign_summary.empty:
     campaign_plot = campaign_summary.copy()
@@ -931,7 +976,7 @@ if not campaign_summary.empty:
         go.Bar(
             x=campaign_plot["Campaign"],
             y=campaign_plot["Revenue"],
-            name="Выручка",
+            name="Revenue",
             marker_color=COLORS["primary"],
             opacity=0.85,
             customdata=np.stack(
@@ -944,10 +989,10 @@ if not campaign_summary.empty:
             ),
             hovertemplate=(
                 "<b>%{x}</b><br>"
-                "Выручка: %{y:,.2f}<br>"
-                "Сделки: %{customdata[0]}<br>"
-                "Оплаты: %{customdata[1]}<br>"
-                "Конверсия: %{customdata[2]:.2f}%<extra></extra>"
+                "Revenue: %{y:,.2f}<br>"
+                "Deals: %{customdata[0]}<br>"
+                "Paid Deals: %{customdata[1]}<br>"
+                "Conversion: %{customdata[2]:.2f}%<extra></extra>"
             )
         )
     )
@@ -956,26 +1001,26 @@ if not campaign_summary.empty:
         go.Scatter(
             x=campaign_plot["Campaign"],
             y=campaign_plot["Payment Conversion, %"],
-            name="Конверсия в оплату, %",
+            name="Payment Conversion, %",
             mode="lines+markers",
             line=dict(color=COLORS["accent"], width=3),
             marker=dict(size=8),
             yaxis="y2",
             hovertemplate=(
                 "<b>%{x}</b><br>"
-                "Конверсия: %{y:.2f}%<extra></extra>"
+                "Conversion: %{y:.2f}%<extra></extra>"
             )
         )
     )
 
     campaign_fig.update_layout(
         xaxis=dict(
-            title="Кампания",
+            title="Campaign",
             tickangle=-35
         ),
-        yaxis=dict(title="Выручка"),
+        yaxis=dict(title="Revenue"),
         yaxis2=dict(
-            title="Конверсия в оплату, %",
+            title="Payment Conversion, %",
             overlaying="y",
             side="right"
         )
@@ -983,35 +1028,35 @@ if not campaign_summary.empty:
 
     campaign_fig = apply_chart_layout(
         campaign_fig,
-        "Топ рекламных кампаний по выручке и конверсии"
+        "Top Campaigns by Revenue and Conversion"
     )
 
     campaign_fig = apply_legend_style(campaign_fig, "top")
 
 else:
     campaign_fig = create_empty_figure(
-        "Топ рекламных кампаний по выручке и конверсии",
-        "Нет данных по рекламным кампаниям"
+        "Top Campaigns by Revenue and Conversion",
+        "No campaign data available"
     )
 
 campaign_table = campaign_summary.copy()
 
 campaign_table = campaign_table.rename(columns={
-    "Campaign": "Кампания",
-    "Deals_Count": "Сделки",
-    "Paid_Deals": "Оплаты",
-    "Payment Conversion, %": "Конверсия, %",
-    "Revenue": "Выручка"
+    "Campaign": "Campaign",
+    "Deals_Count": "Deals",
+    "Paid_Deals": "Paid Deals",
+    "Payment Conversion, %": "Conversion, %",
+    "Revenue": "Revenue"
 })
 
 campaign_table = campaign_table[
-    ["Кампания", "Сделки", "Оплаты", "Конверсия, %", "Выручка"]
+    ["Campaign", "Deals", "Paid Deals", "Conversion, %", "Revenue"]
 ]
 
-campaign_table["Выручка"] = campaign_table["Выручка"].round(2)
-campaign_table["Конверсия, %"] = campaign_table["Конверсия, %"].round(2)
+campaign_table["Revenue"] = campaign_table["Revenue"].round(2)
+campaign_table["Conversion, %"] = campaign_table["Conversion, %"].round(2)
 
-# Вкладка "Продажи"
+# Sales tab
 
 manager_performance_summary = (
     deals
@@ -1040,7 +1085,7 @@ manager_performance_summary["Revenue Share, %"] = (
     manager_performance_summary["Revenue"] / manager_performance_summary["Revenue"].sum() * 100
 ).round(2)
 
-# Короткая сводка по работе отдела продаж
+# Short sales team summary
 
 sales_managers_count = manager_performance_summary[
     manager_performance_summary["Deal Owner Name"] != "Unknown Manager"
@@ -1071,23 +1116,23 @@ sales_kpi_cards = dbc.Row(
     [
         dbc.Col(
             create_kpi_card(
-                "Менеджеры",
+                "Managers",
                 format_int(sales_managers_count),
-                "Количество менеджеров в сделках"
+                "Managers in Deals"
             ),
             md=2
         ),
         dbc.Col(
             create_kpi_card(
-                "Всего сделок",
+                "Total Deals",
                 format_int(sales_total_deals),
-                "Сделки по менеджерам"
+                "Deals by Manager"
             ),
             md=2
         ),
         dbc.Col(
             create_kpi_card(
-                "Оплаченные сделки",
+                "Paid Deals",
                 format_int(sales_paid_deals),
                 "Stage = Payment Done"
             ),
@@ -1095,25 +1140,25 @@ sales_kpi_cards = dbc.Row(
         ),
         dbc.Col(
             create_kpi_card(
-                "Выручка",
+                "Revenue",
                 format_money(sales_revenue),
-                "Выручка по менеджерам"
+                "Revenue by Manager"
             ),
             md=2
         ),
         dbc.Col(
             create_kpi_card(
-                "Средняя конверсия",
+                "Average Conversion",
                 format_percent(sales_avg_manager_conversion),
-                "Среднее по менеджерам"
+                "Average across managers"
             ),
             md=2
         ),
         dbc.Col(
             create_kpi_card(
-                "Лидер по выручке",
+                "Revenue Leader",
                 best_manager_name,
-                f"Выручка: {format_money(best_manager_revenue)}"
+                f"Revenue: {format_money(best_manager_revenue)}"
             ),
             md=2
         )
@@ -1135,10 +1180,10 @@ manager_bubble_fig = px.scatter(
     custom_data=["Paid_Deals", "Revenue"],
     size_max=55,
     labels={
-        "Deals_Count": "Количество сделок",
-        "Payment Conversion, %": "Конверсия в оплату, %",
-        "Revenue": "Выручка",
-        "Deal Owner Name": "Менеджер"
+        "Deals_Count": "Deals Count",
+        "Payment Conversion, %": "Payment Conversion, %",
+        "Revenue": "Revenue",
+        "Deal Owner Name": "Manager"
     }
 )
 
@@ -1149,14 +1194,14 @@ manager_bubble_fig.update_traces(
     cliponaxis=False,
     hovertemplate=(
         "<b>%{hovertext}</b><br>"
-        "Сделки: %{x}<br>"
-        "Оплаты: %{customdata[0]}<br>"
-        "Конверсия: %{y:.2f}%<br>"
-        "Выручка: %{customdata[1]:,.2f}<extra></extra>"
+        "Deals: %{x}<br>"
+        "Paid Deals: %{customdata[0]}<br>"
+        "Conversion: %{y:.2f}%<br>"
+        "Revenue: %{customdata[1]:,.2f}<extra></extra>"
     )
 )
 
-manager_bubble_fig = apply_chart_layout(manager_bubble_fig, "Менеджеры: нагрузка, конверсия и выручка")
+manager_bubble_fig = apply_chart_layout(manager_bubble_fig, "Managers: Workload, Conversion and Revenue")
 manager_bubble_fig = apply_legend_style(manager_bubble_fig, "off")
 
 
@@ -1168,7 +1213,7 @@ manager_share_fig.add_trace(
     go.Bar(
         x=manager_share_plot["Deal Owner Name"],
         y=manager_share_plot["Paid Deals Share, %"],
-        name="Доля оплат, %",
+        name="Paid Deals Share, %",
         marker_color=COLORS["primary"]
     )
 )
@@ -1177,18 +1222,18 @@ manager_share_fig.add_trace(
     go.Bar(
         x=manager_share_plot["Deal Owner Name"],
         y=manager_share_plot["Revenue Share, %"],
-        name="Доля выручки, %",
+        name="Revenue Share, %",
         marker_color=COLORS["accent"]
     )
 )
 
 manager_share_fig.update_layout(
     barmode="group",
-    xaxis=dict(title="Менеджер"),
-    yaxis=dict(title="Доля, %")
+    xaxis=dict(title="Manager"),
+    yaxis=dict(title="Share, %")
 )
 
-manager_share_fig = apply_chart_layout(manager_share_fig, "Вклад менеджеров в оплаты и выручку")
+manager_share_fig = apply_chart_layout(manager_share_fig, "Manager Contribution to Paid Deals and Revenue")
 manager_share_fig = apply_legend_style(manager_share_fig, "top")
 
 
@@ -1229,7 +1274,7 @@ sla_fig.add_trace(
     go.Bar(
         x=sla_conversion_summary["SLA Group"],
         y=sla_conversion_summary["Deals_Count"],
-        name="Количество сделок",
+        name="Deals Count",
         marker_color=COLORS["primary"],
         opacity=0.85
     )
@@ -1239,7 +1284,7 @@ sla_fig.add_trace(
     go.Scatter(
         x=sla_conversion_summary["SLA Group"],
         y=sla_conversion_summary["Payment Conversion, %"],
-        name="Конверсия в оплату, %",
+        name="Payment Conversion, %",
         mode="lines+markers",
         line=dict(color=COLORS["accent"], width=3),
         marker=dict(size=8),
@@ -1248,16 +1293,16 @@ sla_fig.add_trace(
 )
 
 sla_fig.update_layout(
-    xaxis=dict(title="Группа SLA"),
-    yaxis=dict(title="Количество сделок"),
+    xaxis=dict(title="SLA Group"),
+    yaxis=dict(title="Deals Count"),
     yaxis2=dict(
-        title="Конверсия в оплату, %",
+        title="Payment Conversion, %",
         overlaying="y",
         side="right"
     )
 )
 
-sla_fig = apply_chart_layout(sla_fig, "SLA: количество сделок и конверсия")
+sla_fig = apply_chart_layout(sla_fig, "SLA: Deal Volume and Conversion")
 sla_fig = apply_legend_style(sla_fig, "top")
 
 
@@ -1301,10 +1346,10 @@ manager_calls_fig = px.scatter(
     custom_data=["Deals_Count", "Calls_Count", "Paid_Deals", "Revenue"],
     size_max=55,
     labels={
-        "Calls_Count": "Количество звонков",
-        "Paid_Deals": "Количество оплат",
-        "Deals_Count": "Количество сделок",
-        "Deal Owner Name": "Менеджер"
+        "Calls_Count": "Calls Count",
+        "Paid_Deals": "Paid Deals Count",
+        "Deals_Count": "Deals Count",
+        "Deal Owner Name": "Manager"
     }
 )
 
@@ -1315,17 +1360,17 @@ manager_calls_fig.update_traces(
     cliponaxis=False,
     hovertemplate=(
         "<b>%{hovertext}</b><br>"
-        "Звонки: %{customdata[1]}<br>"
-        "Сделки: %{customdata[0]}<br>"
-        "Оплаты: %{customdata[2]}<br>"
-        "Выручка: %{customdata[3]:,.2f}<extra></extra>"
+        "Calls: %{customdata[1]}<br>"
+        "Deals: %{customdata[0]}<br>"
+        "Paid Deals: %{customdata[2]}<br>"
+        "Revenue: %{customdata[3]:,.2f}<extra></extra>"
     )
 )
 
-manager_calls_fig = apply_chart_layout(manager_calls_fig, "Менеджеры: звонки, сделки и оплаты")
+manager_calls_fig = apply_chart_layout(manager_calls_fig, "Managers: Calls, Deals and Paid Deals")
 manager_calls_fig = apply_legend_style(manager_calls_fig, "off")
 
-# Смотрю не только количество оплат, но и финансовый вклад менеджеров
+# Analyze not only paid deal volume but also the financial contribution of each manager
 
 manager_paid_revenue_plot = manager_performance_summary.copy()
 
@@ -1356,10 +1401,10 @@ if not manager_paid_revenue_plot.empty:
         custom_data=["Paid_Deals", "Revenue", "Average Check", "Payment Conversion, %"],
         size_max=45,
         labels={
-            "Paid_Deals": "Количество оплаченных сделок",
-            "Revenue": "Выручка",
-            "Average Check": "Средний чек",
-            "Deal Owner Name": "Менеджер"
+            "Paid_Deals": "Paid Deals",
+            "Revenue": "Revenue",
+            "Average Check": "Average Check",
+            "Deal Owner Name": "Manager"
         }
     )
 
@@ -1370,16 +1415,16 @@ if not manager_paid_revenue_plot.empty:
         cliponaxis=False,
         hovertemplate=(
             "<b>%{hovertext}</b><br>"
-            "Оплаченные сделки: %{customdata[0]}<br>"
-            "Выручка: %{customdata[1]:,.2f}<br>"
-            "Средний чек: %{customdata[2]:,.2f}<br>"
-            "Конверсия: %{customdata[3]:.2f}%<extra></extra>"
+            "Paid Deals: %{customdata[0]}<br>"
+            "Revenue: %{customdata[1]:,.2f}<br>"
+            "Average Check: %{customdata[2]:,.2f}<br>"
+            "Conversion: %{customdata[3]:.2f}%<extra></extra>"
         )
     )
 
     manager_paid_revenue_fig = apply_chart_layout(
         manager_paid_revenue_fig,
-        "Менеджеры: оплаченные сделки, выручка и средний чек"
+        "Managers: Paid Deals, Revenue and Average Check"
     )
 
     manager_paid_revenue_fig.update_layout(
@@ -1389,11 +1434,11 @@ if not manager_paid_revenue_plot.empty:
 
 else:
     manager_paid_revenue_fig = create_empty_figure(
-        "Менеджеры: оплаченные сделки, выручка и средний чек",
-        "Нет данных по оплаченным сделкам"
+        "Managers: Paid Deals, Revenue and Average Check",
+        "No paid deal data available"
     )
 
-# Связка менеджеров и источников: важно учитывать структуру входящего потока
+# Manager-source link: the structure of incoming traffic should be taken into account
 
 if "Source" in deals.columns and "Deal Owner Name" in deals.columns:
     manager_source_data = deals.copy()
@@ -1439,22 +1484,22 @@ if "Source" in deals.columns and "Deal Owner Name" in deals.columns:
             aspect="auto",
             color_continuous_scale=HEATMAP_COLORSCALE,
             labels={
-                "x": "Источник",
-                "y": "Менеджер",
-                "color": "Оплаченные сделки"
+                "x": "Source",
+                "y": "Manager",
+                "color": "Paid Deals"
             }
         )
 
         manager_source_fig = apply_chart_layout(
             manager_source_fig,
-            "Менеджеры × источники: оплаченные сделки"
+            "Managers × Sources: Paid Deals"
         )
 
         manager_source_fig.update_layout(
             xaxis=dict(tickangle=-35),
             margin=dict(l=80, r=40, t=90, b=90),
             coloraxis_colorbar=dict(
-                title="Оплаченные сделки",
+                title="Paid Deals",
                 thickness=14,
                 len=0.75
             )
@@ -1463,26 +1508,26 @@ if "Source" in deals.columns and "Deal Owner Name" in deals.columns:
         manager_source_fig.update_traces(
             textfont=dict(size=11, color=COLORS["text"]),
             hovertemplate=(
-                "Менеджер: %{y}<br>"
-                "Источник: %{x}<br>"
-                "Оплаченные сделки: %{z}<extra></extra>"
+                "Manager: %{y}<br>"
+                "Source: %{x}<br>"
+                "Paid Deals: %{z}<extra></extra>"
             )
         )
 
     else:
         manager_source_fig = create_empty_figure(
-            "Менеджеры × источники: оплаченные сделки",
-            "Нет данных для анализа связки менеджеров и источников"
+            "Managers × Sources: Paid Deals",
+            "No data available for manager-source analysis"
         )
 
 else:
     manager_source_fig = create_empty_figure(
-        "Менеджеры × источники: оплаченные сделки",
-        "Поля Source или Deal Owner Name не найдены"
+        "Managers × Sources: Paid Deals",
+        "Source or Deal Owner Name fields not found"
     )
 
 
-# Связка менеджеров и кампаний: дополнительный разрез к анализу продаж
+# Manager-campaign link as an additional sales analysis dimension
 
 if "Campaign" in deals.columns and "Deal Owner Name" in deals.columns:
     manager_campaign_data = deals.copy()
@@ -1532,22 +1577,22 @@ if "Campaign" in deals.columns and "Deal Owner Name" in deals.columns:
             aspect="auto",
             color_continuous_scale=HEATMAP_COLORSCALE,
             labels={
-                "x": "Кампания",
-                "y": "Менеджер",
-                "color": "Выручка"
+                "x": "Campaign",
+                "y": "Manager",
+                "color": "Revenue"
             }
         )
 
         manager_campaign_fig = apply_chart_layout(
             manager_campaign_fig,
-            "Менеджеры × кампании: выручка"
+            "Managers × Campaigns: Revenue"
         )
 
         manager_campaign_fig.update_layout(
             xaxis=dict(tickangle=-35),
             margin=dict(l=80, r=40, t=90, b=110),
             coloraxis_colorbar=dict(
-                title="Выручка",
+                title="Revenue",
                 thickness=14,
                 len=0.75
             )
@@ -1556,25 +1601,25 @@ if "Campaign" in deals.columns and "Deal Owner Name" in deals.columns:
         manager_campaign_fig.update_traces(
             textfont=dict(size=10, color=COLORS["text"]),
             hovertemplate=(
-                "Менеджер: %{y}<br>"
-                "Кампания: %{x}<br>"
-                "Выручка: %{z:,.2f}<extra></extra>"
+                "Manager: %{y}<br>"
+                "Campaign: %{x}<br>"
+                "Revenue: %{z:,.2f}<extra></extra>"
             )
         )
 
     else:
         manager_campaign_fig = create_empty_figure(
-            "Менеджеры × кампании: выручка",
-            "Нет данных для анализа связки менеджеров и кампаний"
+            "Managers × Campaigns: Revenue",
+            "No data available for manager-campaign analysis"
         )
 
 else:
     manager_campaign_fig = create_empty_figure(
-        "Менеджеры × кампании: выручка",
-        "Поля Campaign или Deal Owner Name не найдены"
+        "Managers × Campaigns: Revenue",
+        "Campaign or Deal Owner Name fields not found"
     )
 
-# Вкладка "Продукты"
+# Products tab
 
 paid_product_summary = (
     paid_deals
@@ -1600,7 +1645,7 @@ paid_product_summary["Revenue Share, %"] = (
 
 paid_product_summary = paid_product_summary.sort_values("Revenue", ascending=False)
 
-# Исключаю малозначимые категории, чтобы они не искажали продуктовые графики
+# Exclude low-volume categories so they do not distort product charts
 
 EXCLUDED_PRODUCTS = ["Find yourself in IT"]
 EXCLUDED_PAYMENT_TYPES = ["Reservation"]
@@ -1618,7 +1663,7 @@ if "Payment Type" in paid_deals_products_filtered.columns:
         ~paid_deals_products_filtered["Payment Type"].isin(EXCLUDED_PAYMENT_TYPES)
     ].copy()
 
-# Основные продуктовые показатели
+# Main product metrics
 
 products_count = paid_product_summary_filtered["Product"].nunique()
 product_paid_deals_total = paid_product_summary_filtered["Paid_Deals"].sum()
@@ -1644,31 +1689,31 @@ products_kpi_cards = dbc.Row(
     [
         dbc.Col(
             create_kpi_card(
-                "Продукты",
+                "Products",
                 format_int(products_count),
-                "Продукты с оплатами"
+                "Products with Paid Deals"
             ),
             md=2
         ),
         dbc.Col(
             create_kpi_card(
-                "Оплаченные сделки",
+                "Paid Deals",
                 format_int(product_paid_deals_total),
-                "По основным продуктам"
+                "For main products"
             ),
             md=2
         ),
         dbc.Col(
             create_kpi_card(
-                "Выручка",
+                "Revenue",
                 format_money(product_revenue_total),
-                "Выручка по продуктам"
+                "Revenue by Product"
             ),
             md=2
         ),
         dbc.Col(
             create_kpi_card(
-                "Средний чек",
+                "Average Check",
                 format_money(product_avg_check_total),
                 "Revenue / Paid Deals"
             ),
@@ -1676,16 +1721,16 @@ products_kpi_cards = dbc.Row(
         ),
         dbc.Col(
             create_kpi_card(
-                "Лидер по выручке",
+                "Revenue Leader",
                 top_product_name,
-                f"Доля: {format_percent(top_product_share)}"
+                f"Share: {format_percent(top_product_share)}"
             ),
             md=2
         ),
         dbc.Col(
             create_kpi_card(
-                "Исключены",
-                "1 продукт / 1 тип",
+                "Excluded",
+                "1 product / 1 type",
                 "Find yourself in IT, Reservation"
             ),
             md=2
@@ -1705,7 +1750,7 @@ product_share_fig.add_trace(
     go.Bar(
         x=product_share_plot["Product"],
         y=product_share_plot["Paid Deals Share, %"],
-        name="Доля оплат, %",
+        name="Paid Deals Share, %",
         marker_color=COLORS["primary"]
     )
 )
@@ -1714,18 +1759,18 @@ product_share_fig.add_trace(
     go.Bar(
         x=product_share_plot["Product"],
         y=product_share_plot["Revenue Share, %"],
-        name="Доля выручки, %",
+        name="Revenue Share, %",
         marker_color=COLORS["accent"]
     )
 )
 
 product_share_fig.update_layout(
     barmode="group",
-    xaxis=dict(title="Продукт"),
-    yaxis=dict(title="Доля, %")
+    xaxis=dict(title="Product"),
+    yaxis=dict(title="Share, %")
 )
 
-product_share_fig = apply_chart_layout(product_share_fig, "Продукты: доля оплат и доля выручки")
+product_share_fig = apply_chart_layout(product_share_fig, "Products: Paid Deals Share and Revenue Share")
 product_share_fig = apply_legend_style(product_share_fig, "top")
 
 
@@ -1735,7 +1780,7 @@ product_paid_avg_fig.add_trace(
     go.Bar(
         x=product_share_plot["Product"],
         y=product_share_plot["Paid_Deals"],
-        name="Оплаченные сделки",
+        name="Paid Deals",
         marker_color=COLORS["primary"],
         opacity=0.85
     )
@@ -1745,7 +1790,7 @@ product_paid_avg_fig.add_trace(
     go.Scatter(
         x=product_share_plot["Product"],
         y=product_share_plot["Avg_Revenue"],
-        name="Средний чек",
+        name="Average Check",
         mode="lines+markers",
         line=dict(color=COLORS["accent"], width=3),
         marker=dict(size=8),
@@ -1754,16 +1799,16 @@ product_paid_avg_fig.add_trace(
 )
 
 product_paid_avg_fig.update_layout(
-    xaxis=dict(title="Продукт"),
-    yaxis=dict(title="Количество оплат"),
+    xaxis=dict(title="Product"),
+    yaxis=dict(title="Paid Deals Count"),
     yaxis2=dict(
-        title="Средний чек",
+        title="Average Check",
         overlaying="y",
         side="right"
     )
 )
 
-product_paid_avg_fig = apply_chart_layout(product_paid_avg_fig, "Продукты: оплаченные сделки и средний чек")
+product_paid_avg_fig = apply_chart_layout(product_paid_avg_fig, "Products: Paid Deals and Average Check")
 product_paid_avg_fig = apply_legend_style(product_paid_avg_fig, "top")
 
 
@@ -1787,7 +1832,7 @@ payment_type_fig.add_trace(
     go.Bar(
         x=payment_type_summary["Payment Type"],
         y=payment_type_summary["Paid_Deals"],
-        name="Оплаченные сделки",
+        name="Paid Deals",
         marker_color=COLORS["primary"],
         opacity=0.85
     )
@@ -1797,7 +1842,7 @@ payment_type_fig.add_trace(
     go.Scatter(
         x=payment_type_summary["Payment Type"],
         y=payment_type_summary["Avg_Revenue"],
-        name="Средний чек",
+        name="Average Check",
         mode="lines+markers",
         line=dict(color=COLORS["accent"], width=3),
         marker=dict(size=8),
@@ -1806,16 +1851,16 @@ payment_type_fig.add_trace(
 )
 
 payment_type_fig.update_layout(
-    xaxis=dict(title="Тип оплаты"),
-    yaxis=dict(title="Количество оплат"),
+    xaxis=dict(title="Payment Type"),
+    yaxis=dict(title="Paid Deals Count"),
     yaxis2=dict(
-        title="Средний чек",
+        title="Average Check",
         overlaying="y",
         side="right"
     )
 )
 
-payment_type_fig = apply_chart_layout(payment_type_fig, "Типы оплаты: оплаченные сделки и средний чек")
+payment_type_fig = apply_chart_layout(payment_type_fig, "Payment Types: Paid Deals and Average Check")
 payment_type_fig = apply_legend_style(payment_type_fig, "top")
 
 
@@ -1850,25 +1895,25 @@ for payment_type in product_payment_pivot.columns:
             name=str(payment_type),
             marker_color=PAYMENT_TYPE_COLORS.get(str(payment_type), COLORS["secondary"]),
             hovertemplate=(
-                "Продукт: %{x}<br>"
-                f"Тип оплаты: {payment_type}<br>"
-                "Количество оплат: %{y}<extra></extra>"
+                "Product: %{x}<br>"
+                f"Payment Type: {payment_type}<br>"
+                "Paid Deals Count: %{y}<extra></extra>"
             )
         )
     )
 
 product_payment_fig.update_layout(
     barmode="stack",
-    xaxis=dict(title="Продукт"),
-    yaxis=dict(title="Количество оплат")
+    xaxis=dict(title="Product"),
+    yaxis=dict(title="Paid Deals Count")
 )
 
-product_payment_fig = apply_chart_layout(product_payment_fig, "Продукты: структура типов оплаты")
+product_payment_fig = apply_chart_layout(product_payment_fig, "Products: Payment Type Structure")
 product_payment_fig = apply_legend_style(product_payment_fig, "top")
 
-# Небольшая сноска к продуктовым ограничениям
+# Small note on product-level limitations
 products_note = dbc.Alert(
-    "Примечание: продукт Find yourself in IT и тип оплаты Reservation исключены из продуктовых графиков, так как имеют минимальный объём и не влияют на основные выводы.",
+    "Note: Find yourself in IT and Reservation payment type are excluded from product charts because their volume is minimal and does not affect the main conclusions.",
     color="light",
     style={
         "border": "1px solid #E5E7EB",
@@ -1879,7 +1924,7 @@ products_note = dbc.Alert(
     }
 )
 
-# Связка продукта и типа обучения
+# Product and education type link
 
 education_type_col = find_col(
     paid_deals_products_filtered,
@@ -1890,9 +1935,9 @@ education_type_col = find_col(
         "Course Type",
         "Product Type",
         "Training Type",
-        "Тип обучения",
-        "Формат обучения",
-        "Тип курса"
+        "Education Type",
+        "Education Format",
+        "Course Type"
     ]
 )
 
@@ -1938,71 +1983,71 @@ if education_type_col and "Product" in paid_deals_products_filtered.columns:
                     name=str(education_type),
                     marker_color=education_colors[i % len(education_colors)],
                     hovertemplate=(
-                        "Продукт: %{x}<br>"
-                        f"Тип обучения: {education_type}<br>"
-                        "Количество оплат: %{y}<extra></extra>"
+                        "Product: %{x}<br>"
+                        f"Education Type: {education_type}<br>"
+                        "Paid Deals Count: %{y}<extra></extra>"
                     )
                 )
             )
 
         product_education_fig.update_layout(
             barmode="stack",
-            xaxis=dict(title="Продукт"),
-            yaxis=dict(title="Количество оплат")
+            xaxis=dict(title="Product"),
+            yaxis=dict(title="Paid Deals Count")
         )
 
         product_education_fig = apply_chart_layout(
             product_education_fig,
-            "Продукты: структура по типу обучения"
+            "Products: Education Type Structure"
         )
 
         product_education_fig = apply_legend_style(product_education_fig, "top")
 
     else:
         product_education_fig = create_empty_figure(
-            "Продукты: структура по типу обучения",
-            "Нет данных для анализа типа обучения"
+            "Products: Education Type Structure",
+            "No data available for education type analysis"
         )
 
 else:
     product_education_fig = create_empty_figure(
-        "Продукты: структура по типу обучения",
-        "Колонка с типом обучения не найдена"
+        "Products: Education Type Structure",
+        "Education type column not found"
     )
 
 product_table = paid_product_summary_filtered.copy()
 
 product_table = product_table.rename(columns={
-    "Paid_Deals": "Оплаты",
-    "Avg_Revenue": "Средний чек",
-    "Median_Revenue": "Медианный чек",
-    "Product": "Продукт",
-    "Revenue": "Выручка",
-    "Paid Deals Share, %": "Доля оплат, %",
-    "Revenue Share, %": "Доля выручки, %"
+    "Paid_Deals": "Paid Deals",
+    "Avg_Revenue": "Average Check",
+    "Median_Revenue": "Median Check",
+    "Product": "Product",
+    "Revenue": "Revenue",
+    "Paid Deals Share, %": "Paid Deals Share, %",
+    "Revenue Share, %": "Revenue Share, %"
 })
 
 product_table = product_table[
     [
-        "Продукт",
-        "Оплаты",
-        "Выручка",
-        "Средний чек",
-        "Медианный чек",
-        "Доля оплат, %",
-        "Доля выручки, %"
+        "Product",
+        "Paid Deals",
+        "Revenue",
+        "Average Check",
+        "Median Check",
+        "Paid Deals Share, %",
+        "Revenue Share, %"
     ]
 ]
 
-# Вкладка "UNIT-экономика"
+# Unit economics tab
 
 unit_total_row = unit_economics_total.iloc[0].to_dict()
 
 
 def get_unit_metric(possible_names):
     """
-    Ищет метрику в строке unit_economics_total по нескольким возможным названиям.
-    Нужна защита от разных вариантов названий колонок: C1, C1 %, C1, %, ROMI %, ROMI, % и т.д.
+    Finds a metric in the unit_economics_total row by several possible names.
+    This protects the dashboard from alternative column names such as C1, C1 %, ROMI %, ROMI, % and similar variants.
     """
     normalized_map = {
         str(col).strip().lower().replace(" ", "").replace("_", "").replace(",", "").replace("%", ""): col
@@ -2023,7 +2068,7 @@ unit_kpi_cards = dbc.Row(
             create_kpi_card(
                 "UA",
                 format_int(get_unit_metric(["UA", "Users", "Leads"])),
-                "Потенциальные клиенты"
+                "Potential Leads"
             ),
             md=2
         ),
@@ -2031,7 +2076,7 @@ unit_kpi_cards = dbc.Row(
             create_kpi_card(
                 "B",
                 format_int(get_unit_metric(["B", "Clients", "Customers"])),
-                "Клиенты"
+                "Clients"
             ),
             md=2
         ),
@@ -2039,7 +2084,7 @@ unit_kpi_cards = dbc.Row(
             create_kpi_card(
                 "C1",
                 format_percent_auto(get_unit_metric(["C1", "C1 %", "C1, %", "Conversion", "Conversion %"])),
-                "Конверсия в клиента"
+                "Lead-to-Client Conversion"
             ),
             md=2
         ),
@@ -2047,7 +2092,7 @@ unit_kpi_cards = dbc.Row(
             create_kpi_card(
                 "AC",
                 format_money(get_unit_metric(["AC", "Acquisition Cost"])),
-                "Расходы на привлечение"
+                "Acquisition Cost"
             ),
             md=2
         ),
@@ -2055,7 +2100,7 @@ unit_kpi_cards = dbc.Row(
             create_kpi_card(
                 "CPA",
                 format_money(get_unit_metric(["CPA", "Cost per Lead"])),
-                "Стоимость лида"
+                "Cost per Lead"
             ),
             md=2
         ),
@@ -2063,7 +2108,7 @@ unit_kpi_cards = dbc.Row(
             create_kpi_card(
                 "CAC",
                 format_money(get_unit_metric(["CAC", "Cost per Customer"])),
-                "Стоимость клиента"
+                "Customer Acquisition Cost"
             ),
             md=2
         ),
@@ -2078,8 +2123,8 @@ unit_kpi_cards_2 = dbc.Row(
         dbc.Col(
             create_kpi_card(
                 "Revenue_I",
-                format_money(get_unit_metric(["Revenue_I", "Revenue I", "Revenue", "Расчётная выручка"])),
-                "Расчётная выручка"
+                format_money(get_unit_metric(["Revenue_I", "Revenue I", "Revenue", "Calculated Revenue"])),
+                "Calculated Revenue"
             ),
             md=2
         ),
@@ -2087,7 +2132,7 @@ unit_kpi_cards_2 = dbc.Row(
             create_kpi_card(
                 "CLTV",
                 format_money(get_unit_metric(["CLTV"])),
-                "Ценность клиента"
+                "Customer Lifetime Value"
             ),
             md=2
         ),
@@ -2095,7 +2140,7 @@ unit_kpi_cards_2 = dbc.Row(
             create_kpi_card(
                 "LTV",
                 format_money(get_unit_metric(["LTV"])),
-                "Ценность лида"
+                "Lead Value"
             ),
             md=2
         ),
@@ -2103,7 +2148,7 @@ unit_kpi_cards_2 = dbc.Row(
             create_kpi_card(
                 "CM",
                 format_money(get_unit_metric(["CM", "Contribution Margin"])),
-                "Маржинальная прибыль"
+                "Contribution Margin"
             ),
             md=2
         ),
@@ -2111,15 +2156,15 @@ unit_kpi_cards_2 = dbc.Row(
             create_kpi_card(
                 "ROMI",
                 format_percent_auto(get_unit_metric(["ROMI", "ROMI %", "ROMI, %", "Return on Marketing"])),
-                "Окупаемость маркетинга"
+                "Marketing ROI"
             ),
             md=2
         ),
         dbc.Col(
             create_kpi_card(
-                "Эксперимент",
-                "11 дней",
-                "Можно провести за 14 дней"
+                "Experiment",
+                "11 days",
+                "Can be run within 14 days"
             ),
             md=2
         ),
@@ -2128,14 +2173,14 @@ unit_kpi_cards_2 = dbc.Row(
     style={"marginBottom": "24px"}
 )
 
-product_col = find_col(unit_economics_display, ["Product", "Продукт"])
+product_col = find_col(unit_economics_display, ["Product", "Product"])
 revenue_col = find_col(unit_economics_display, ["Revenue", "Revenue_I"])
 cm_col = find_col(unit_economics_display, ["CM"])
 cac_col = find_col(unit_economics_display, ["CAC"])
 cltv_col = find_col(unit_economics_display, ["CLTV"])
-b_col = find_col(unit_economics_display, ["B", "Clients", "Клиенты"])
+b_col = find_col(unit_economics_display, ["B", "Clients", "Clients"])
 
-# В UNIT-файлах часть чисел может сохраниться как текст, поэтому дополнительно привожу их к numeric
+# Some unit economics values may be stored as text, so they are explicitly converted to numeric
 
 unit_numeric_cols = [
     revenue_col,
@@ -2156,7 +2201,7 @@ for col in unit_numeric_cols:
             errors="coerce"
         )
 
-# Для UNIT-графиков оставляю только продукты с клиентами в расчётной базе
+# Keep only products with clients in the calculation base for unit economics charts
 UNIT_EXCLUDED_PRODUCTS = ["Data Analytics", "Find yourself in IT", "Unknown"]
 
 if product_col and revenue_col and cm_col:
@@ -2189,7 +2234,7 @@ if product_col and revenue_col and cm_col:
     )
 
     unit_revenue_cm_fig.update_layout(
-        xaxis=dict(title="Продукт"),
+        xaxis=dict(title="Product"),
         yaxis=dict(title="Revenue"),
         yaxis2=dict(
             title="CM",
@@ -2198,11 +2243,11 @@ if product_col and revenue_col and cm_col:
         )
     )
 
-    unit_revenue_cm_fig = apply_chart_layout(unit_revenue_cm_fig, "Продукты: расчётная выручка и CM")
+    unit_revenue_cm_fig = apply_chart_layout(unit_revenue_cm_fig, "Products: Calculated Revenue and CM")
     unit_revenue_cm_fig = apply_legend_style(unit_revenue_cm_fig, "top")
 
 else:
-    unit_revenue_cm_fig = create_empty_figure("Revenue и CM по продуктам")
+    unit_revenue_cm_fig = create_empty_figure("Revenue and CM by Product")
 
 
 if product_col and cac_col and cltv_col:
@@ -2236,7 +2281,7 @@ if product_col and cac_col and cltv_col:
                 cac_col: "CAC",
                 cltv_col: "CLTV",
                 product_col: "Product",
-                "Bubble Size": "Размер"
+                "Bubble Size": "Size"
             }
         )
 
@@ -2249,19 +2294,19 @@ if product_col and cac_col and cltv_col:
             )
         )
 
-        cac_cltv_fig = apply_chart_layout(cac_cltv_fig, "Продукты: CAC и CLTV")
+        cac_cltv_fig = apply_chart_layout(cac_cltv_fig, "Products: CAC and CLTV")
         cac_cltv_fig = apply_legend_style(cac_cltv_fig, "top")
 
     else:
         cac_cltv_fig = create_empty_figure(
-            "Сравнение CAC и CLTV по продуктам",
-            "Нет продуктов с положительными CAC и CLTV"
+            "CAC vs CLTV by Product",
+            "No products with positive CAC and CLTV"
         )
 
 else:
-    cac_cltv_fig = create_empty_figure("Сравнение CAC и CLTV по продуктам")
+    cac_cltv_fig = create_empty_figure("CAC vs CLTV by Product")
 
-# График показывает эффект от улучшения C1 в сценарном анализе
+# The chart shows the effect of C1 improvement in the scenario analysis
 
 growth_required_cols = [
     "Product",
@@ -2275,7 +2320,7 @@ growth_required_cols = [
 if all(col in best_growth_points.columns for col in growth_required_cols):
     growth_plot = best_growth_points.copy()
 
-    # Оставляем только продукты с клиентами в расчётной базе
+    # Keep only products with clients in the calculation base
     growth_plot = growth_plot[
         ~growth_plot["Product"].astype(str).isin(
             ["Data Analytics", "Find yourself in IT", "Unknown"]
@@ -2312,7 +2357,7 @@ if all(col in best_growth_points.columns for col in growth_required_cols):
             go.Bar(
                 y=growth_plot["Label"],
                 x=growth_plot["Baseline CM"],
-                name="CM до",
+                name="Baseline CM",
                 orientation="h",
                 marker_color=COLORS["primary"],
                 opacity=0.75,
@@ -2326,10 +2371,10 @@ if all(col in best_growth_points.columns for col in growth_required_cols):
                 ),
                 hovertemplate=(
                     "<b>%{y}</b><br>"
-                    "CM до: %{x:,.2f}<br>"
-                    "CM после: %{customdata[0]:,.2f}<br>"
-                    "Прирост CM: %{customdata[1]:,.2f}<br>"
-                    "Прирост, %: %{customdata[2]:.2f}%<extra></extra>"
+                    "Baseline CM: %{x:,.2f}<br>"
+                    "Scenario CM: %{customdata[0]:,.2f}<br>"
+                    "CM Uplift: %{customdata[1]:,.2f}<br>"
+                    "Uplift, %: %{customdata[2]:.2f}%<extra></extra>"
                 )
             )
         )
@@ -2338,7 +2383,7 @@ if all(col in best_growth_points.columns for col in growth_required_cols):
             go.Bar(
                 y=growth_plot["Label"],
                 x=growth_plot["Scenario CM"],
-                name="CM после",
+                name="Scenario CM",
                 orientation="h",
                 marker_color=COLORS["accent"],
                 opacity=0.75,
@@ -2352,15 +2397,15 @@ if all(col in best_growth_points.columns for col in growth_required_cols):
                 ),
                 hovertemplate=(
                     "<b>%{y}</b><br>"
-                    "CM до: %{customdata[0]:,.2f}<br>"
-                    "CM после: %{x:,.2f}<br>"
-                    "Прирост CM: %{customdata[1]:,.2f}<br>"
-                    "Прирост, %: %{customdata[2]:.2f}%<extra></extra>"
+                    "Baseline CM: %{customdata[0]:,.2f}<br>"
+                    "Scenario CM: %{x:,.2f}<br>"
+                    "CM Uplift: %{customdata[1]:,.2f}<br>"
+                    "Uplift, %: %{customdata[2]:.2f}%<extra></extra>"
                 )
             )
         )
 
-        # Подписи прироста справа от баров
+        # Uplift labels to the right of the bars
         for _, row in growth_plot.iterrows():
             cm_growth_fig.add_annotation(
                 x=row["Scenario CM"],
@@ -2384,15 +2429,15 @@ if all(col in best_growth_points.columns for col in growth_required_cols):
 
         cm_growth_fig = apply_chart_layout(
             cm_growth_fig,
-            "CM до и после улучшения C1"
+            "CM Before and After C1 Improvement"
         )
 
         cm_growth_fig = apply_legend_style(cm_growth_fig, "top")
 
     else:
         cm_growth_fig = create_empty_figure(
-            "CM до и после улучшения C1",
-            "Нет строк с заполненными значениями Baseline CM и Scenario CM"
+            "CM Before and After C1 Improvement",
+            "No rows with filled Baseline CM and Scenario CM values"
         )
 
 else:
@@ -2402,14 +2447,14 @@ else:
     ]
 
     cm_growth_fig = create_empty_figure(
-        "CM до и после улучшения C1",
-        f"Не найдены колонки: {', '.join(missing_cols)}"
+        "CM Before and After C1 Improvement",
+        f"Missing columns: {', '.join(missing_cols)}"
     )
 
 experiment_text = html.Div(
     [
         html.H5(
-            "HADI-гипотеза",
+            "HADI Hypothesis",
             style={
                 "fontWeight": "700",
                 "color": COLORS["text"],
@@ -2418,7 +2463,7 @@ experiment_text = html.Div(
         ),
 
         html.Div(
-            "Гипотеза",
+            "Hypothesis",
             style={
                 "fontWeight": "700",
                 "fontSize": "13px",
@@ -2427,8 +2472,8 @@ experiment_text = html.Div(
             }
         ),
         html.P(
-            "Если внедрить обновлённый сценарий первого контакта и follow-up для новых заявок, "
-            "то конверсия из лида в клиента C1 вырастет минимум на 10%.",
+            "If an updated first-contact and follow-up script is implemented for new leads, "
+            "then lead-to-client conversion C1 will increase by at least 10%.",
             style={
                 "fontSize": "13px",
                 "color": COLORS["muted_text"],
@@ -2438,7 +2483,7 @@ experiment_text = html.Div(
         ),
 
         html.Div(
-            "Параметры эксперимента",
+            "Experiment Parameters",
             style={
                 "fontWeight": "700",
                 "fontSize": "13px",
@@ -2447,14 +2492,14 @@ experiment_text = html.Div(
             }
         ),
 
-        html.Div("Метрика: C1", style={"fontSize": "13px", "marginBottom": "4px"}),
-        html.Div("Ожидаемый рост: +10%", style={"fontSize": "13px", "marginBottom": "4px"}),
-        html.Div("Размер выборки: 560 лидов", style={"fontSize": "13px", "marginBottom": "4px"}),
-        html.Div("Средний поток: 51 лид в день", style={"fontSize": "13px", "marginBottom": "4px"}),
-        html.Div("Длительность эксперимента: 11 дней", style={"fontSize": "13px", "marginBottom": "8px"}),
+        html.Div("Metric: C1", style={"fontSize": "13px", "marginBottom": "4px"}),
+        html.Div("Expected uplift: +10%", style={"fontSize": "13px", "marginBottom": "4px"}),
+        html.Div("Sample size: 560 leads", style={"fontSize": "13px", "marginBottom": "4px"}),
+        html.Div("Average flow: 51 leads per day", style={"fontSize": "13px", "marginBottom": "4px"}),
+        html.Div("Experiment duration: 11 days", style={"fontSize": "13px", "marginBottom": "8px"}),
 
         html.P(
-            "Сценарный анализ выше показывает эффект C1 +5%. HADI-гипотеза проверяет более заметный экспериментальный эффект C1 +10%.",
+            "The scenario analysis above shows the effect of a C1 +5% change. The HADI hypothesis tests a more pronounced experimental effect of C1 +10%.",
             style={
                 "fontSize": "12px",
                 "color": COLORS["muted_text"],
@@ -2465,7 +2510,7 @@ experiment_text = html.Div(
         ),
 
         html.Div(
-            "Эксперимент можно провести в рамках 14 дней",
+            "The experiment can be run within 14 days",
             style={
                 "fontSize": "13px",
                 "fontWeight": "700",
@@ -2487,11 +2532,11 @@ experiment_card = dbc.Card(
     }
 )
 
-# Географию и уровень немецкого языка не выношу в отдельный анализ из-за высокой доли Unknown
+# Geography and German language level are not treated as separate analysis sections because of the high Unknown share
 geo_data_note = dbc.Alert(
     [
         html.Div(
-            "Ограничение географического и языкового анализа",
+            "Limitation of geographic and language-level analysis",
             style={
                 "fontWeight": "700",
                 "color": COLORS["text"],
@@ -2499,8 +2544,8 @@ geo_data_note = dbc.Alert(
             }
         ),
         html.Div(
-            "Поля City и Level of Deutsch заполнены слабо: около 90% значений по городу и около 98% по уровню немецкого языка находятся в Unknown. "
-            "Поэтому эти разрезы не вынесены в основные графики dashboard. Berlin и уровень B1 выделяются только среди заполненных значений, поэтому выводы требуют осторожной интерпретации.",
+            "City and Level of Deutsch have low completeness: around 90% of city values and around 98% of German level values are Unknown. "
+            "Therefore, these dimensions are not included in the main dashboard charts. Berlin and B1 stand out only within the filled subset of the data, so conclusions should be interpreted carefully.",
             style={
                 "color": COLORS["muted_text"],
                 "fontSize": "13px",
@@ -2521,44 +2566,44 @@ geo_data_note = dbc.Alert(
 )
 
 geo_quality_df = pd.DataFrame({
-    "Поле": ["City", "Level of Deutsch"],
-    "Заполнено, %": [10.02, 2.30],
-    "Не заполнено, %": [89.98, 97.70]
+    "Field": ["City", "Level of Deutsch"],
+    "Filled, %": [10.02, 2.30],
+    "Missing, %": [89.98, 97.70]
 })
 
 geo_quality_fig = go.Figure()
 
 geo_quality_fig.add_trace(
     go.Bar(
-        y=geo_quality_df["Поле"],
-        x=geo_quality_df["Заполнено, %"],
-        name="Заполнено, %",
+        y=geo_quality_df["Field"],
+        x=geo_quality_df["Filled, %"],
+        name="Filled, %",
         orientation="h",
         marker_color="#A7D8F5",
-        text=geo_quality_df["Заполнено, %"],
+        text=geo_quality_df["Filled, %"],
         texttemplate="%{text:.2f}%",
         textposition="outside",
         cliponaxis=False,
         hovertemplate=(
-            "Поле: %{y}<br>"
-            "Заполнено: %{x:.2f}%<extra></extra>"
+            "Field: %{y}<br>"
+            "Filled: %{x:.2f}%<extra></extra>"
         )
     )
 )
 
 geo_quality_fig.add_trace(
     go.Bar(
-        y=geo_quality_df["Поле"],
-        x=geo_quality_df["Не заполнено, %"],
-        name="Не заполнено, %",
+        y=geo_quality_df["Field"],
+        x=geo_quality_df["Missing, %"],
+        name="Missing, %",
         orientation="h",
         marker_color="#EEF2F7",
-        text=geo_quality_df["Не заполнено, %"],
+        text=geo_quality_df["Missing, %"],
         texttemplate="%{text:.2f}%",
         textposition="inside",
         hovertemplate=(
-            "Поле: %{y}<br>"
-            "Не заполнено: %{x:.2f}%<extra></extra>"
+            "Field: %{y}<br>"
+            "Missing: %{x:.2f}%<extra></extra>"
         )
     )
 )
@@ -2566,7 +2611,7 @@ geo_quality_fig.add_trace(
 geo_quality_fig.update_layout(
     barmode="stack",
     xaxis=dict(
-        title="Доля, %",
+        title="Share, %",
         range=[0, 105]
     ),
     yaxis=dict(
@@ -2578,7 +2623,7 @@ geo_quality_fig.update_layout(
 
 geo_quality_fig = apply_chart_layout(
     geo_quality_fig,
-    "Качество заполнения City и Level of Deutsch"
+    "Completeness of City and Level of Deutsch"
 )
 
 geo_quality_fig.update_layout(
@@ -2594,45 +2639,78 @@ geo_quality_fig.update_layout(
     ),
     margin=dict(l=80, r=40, t=95, b=45)
 )
-# Сборка вкладок dashboard
+# Dashboard tab assembly
+
+# The main tabs contain many charts, so they are split into shorter subtabs.
+# This makes each screen easier to read and better suited for a 16:9 presentation format.
+
+def create_inner_tabs(tabs):
+    return dbc.Tabs(
+        tabs,
+        className="mb-3",
+        style={"marginBottom": "16px"}
+    )
+
 
 overview_tab = html.Div(
     [
         create_section_header(
-            "Общий обзор онлайн-школы",
-            "Главная вкладка показывает общую бизнес-картину: воронку, оплаты, выручку, конверсию и динамику по месяцам."
-        ),
-        overview_kpi_cards,
-        dbc.Row(
-            [
-                dbc.Col(create_chart_card(stage_fig), md=12)
-            ],
-            className="g-3",
-            style={"marginBottom": "24px"}
-        ),
-        dbc.Row(
-            [
-                dbc.Col(create_chart_card(monthly_deals_fig), md=7),
-                dbc.Col(create_chart_card(monthly_conversion_fig), md=5)
-            ],
-            className="g-3",
-            style={"marginBottom": "24px"}
-        ),
-        dbc.Row(
-            [
-                dbc.Col(create_chart_card(top_sources_revenue_fig), md=6),
-                dbc.Col(create_chart_card(top_products_revenue_fig), md=6)
-            ],
-            className="g-3",
-            style={"marginBottom": "24px"}
+            "Online School Overview",
+            "This tab shows the overall business picture: funnel, paid deals, revenue, conversion and monthly dynamics."
         ),
 
-        dbc.Row(
+        create_inner_tabs(
             [
-                dbc.Col(create_chart_card(geo_quality_fig), md=9),
-                dbc.Col(geo_data_note, md=3)
-            ],
-            className="g-3"
+                dbc.Tab(
+                    label="KPI and Funnel",
+                    children=[
+                        overview_kpi_cards,
+                        dbc.Row(
+                            [
+                                dbc.Col(create_chart_card(stage_fig), md=5),
+                                dbc.Col(create_chart_card(monthly_deals_fig), md=7)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                ),
+                dbc.Tab(
+                    label="Dynamics",
+                    children=[
+                        dbc.Row(
+                            [
+                                dbc.Col(create_chart_card(monthly_deals_fig), md=7),
+                                dbc.Col(create_chart_card(monthly_conversion_fig), md=5)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                ),
+                dbc.Tab(
+                    label="Sources and Products",
+                    children=[
+                        dbc.Row(
+                            [
+                                dbc.Col(create_chart_card(top_sources_revenue_fig), md=6),
+                                dbc.Col(create_chart_card(top_products_revenue_fig), md=6)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                ),
+                dbc.Tab(
+                    label="Data Quality",
+                    children=[
+                        dbc.Row(
+                            [
+                                dbc.Col(create_chart_card(geo_quality_fig, graph_height=300), md=8),
+                                dbc.Col(geo_data_note, md=4)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                )
+            ]
         )
     ]
 )
@@ -2641,37 +2719,59 @@ overview_tab = html.Div(
 marketing_tab = html.Div(
     [
         create_section_header(
-            "Маркетинг",
-            "Вкладка показывает эффективность каналов привлечения: расходы, выручку, конверсию, стоимость лида, стоимость клиента и качество заявок."
+            "Marketing",
+            "This tab shows acquisition channel performance: spend, revenue, conversion, cost per lead, customer acquisition cost and lead quality."
         ),
-        marketing_kpi_cards,
-        dbc.Row(
+
+        create_inner_tabs(
             [
-                dbc.Col(create_chart_card(source_bubble_fig), md=6),
-                dbc.Col(create_chart_card(spend_revenue_fig), md=6)
-            ],
-            className="g-3",
-            style={"marginBottom": "24px"}
-        ),
-        dbc.Row(
-            [
-                dbc.Col(create_chart_card(quality_fig), md=12)
-            ],
-            className="g-3",
-            style={"marginBottom": "24px"}
-        ),
-        dbc.Row(
-            [
-                dbc.Col(create_chart_card(campaign_fig), md=12)
-            ],
-            className="g-3",
-            style={"marginBottom": "24px"}
-        ),
-        dbc.Row(
-            [
-                dbc.Col(create_table_card(campaign_table, page_size=10), md=12)
-            ],
-            className="g-3"
+                dbc.Tab(
+                    label="Sources",
+                    children=[
+                        marketing_kpi_cards,
+                        dbc.Row(
+                            [
+                                dbc.Col(create_chart_card(source_bubble_fig), md=12)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                ),
+                dbc.Tab(
+                    label="Spend and ROI",
+                    children=[
+                        dbc.Row(
+                            [
+                                dbc.Col(create_chart_card(spend_revenue_fig), md=12)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                ),
+                dbc.Tab(
+                    label="Quality and Campaigns",
+                    children=[
+                        dbc.Row(
+                            [
+                                dbc.Col(create_chart_card(quality_fig), md=5),
+                                dbc.Col(create_chart_card(campaign_fig), md=7)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                ),
+                dbc.Tab(
+                    label="Campaign Table",
+                    children=[
+                        dbc.Row(
+                            [
+                                dbc.Col(create_table_card(campaign_table, page_size=10), md=12)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                )
+            ]
         )
     ]
 )
@@ -2680,44 +2780,61 @@ marketing_tab = html.Div(
 sales_tab = html.Div(
     [
         create_section_header(
-            "Продажи",
-            "Вкладка показывает эффективность менеджеров: нагрузку, конверсию, выручку, средний чек, звонковую активность, SLA и связку продаж с источниками привлечения."
+            "Sales",
+            "This tab shows sales team performance: workload, conversion, revenue, average check, call activity, SLA and the link between sales and acquisition sources."
         ),
 
-        sales_kpi_cards,
-
-        dbc.Row(
+        create_inner_tabs(
             [
-                dbc.Col(create_chart_card(manager_bubble_fig), md=6),
-                dbc.Col(create_chart_card(manager_share_fig), md=6)
-            ],
-            className="g-3",
-            style={"marginBottom": "24px"}
-        ),
-
-        dbc.Row(
-            [
-                dbc.Col(create_chart_card(manager_paid_revenue_fig), md=12)
-            ],
-            className="g-3",
-            style={"marginBottom": "24px"}
-        ),
-
-        dbc.Row(
-            [
-                dbc.Col(create_chart_card(manager_calls_fig), md=6),
-                dbc.Col(create_chart_card(sla_fig), md=6)
-            ],
-            className="g-3",
-            style={"marginBottom": "24px"}
-        ),
-
-        dbc.Row(
-            [
-                dbc.Col(create_chart_card(manager_source_fig), md=6),
-                dbc.Col(create_chart_card(manager_campaign_fig), md=6)
-            ],
-            className="g-3"
+                dbc.Tab(
+                    label="Managers",
+                    children=[
+                        sales_kpi_cards,
+                        dbc.Row(
+                            [
+                                dbc.Col(create_chart_card(manager_bubble_fig), md=6),
+                                dbc.Col(create_chart_card(manager_share_fig), md=6)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                ),
+                dbc.Tab(
+                    label="Revenue and Check",
+                    children=[
+                        dbc.Row(
+                            [
+                                dbc.Col(create_chart_card(manager_paid_revenue_fig), md=12)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                ),
+                dbc.Tab(
+                    label="SLA and Calls",
+                    children=[
+                        dbc.Row(
+                            [
+                                dbc.Col(create_chart_card(manager_calls_fig), md=6),
+                                dbc.Col(create_chart_card(sla_fig), md=6)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                ),
+                dbc.Tab(
+                    label="Links",
+                    children=[
+                        dbc.Row(
+                            [
+                                dbc.Col(create_chart_card(manager_source_fig), md=6),
+                                dbc.Col(create_chart_card(manager_campaign_fig), md=6)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                )
+            ]
         )
     ]
 )
@@ -2726,53 +2843,70 @@ sales_tab = html.Div(
 products_tab = html.Div(
     [
         create_section_header(
-            "Продукты",
-            "Вкладка показывает продуктовую структуру продаж: оплаты, выручку, средний чек, типы оплаты и распределение по типу обучения."
+            "Products",
+            "This tab shows the product sales structure: paid deals, revenue, average check, payment types and distribution by education type."
         ),
 
-        products_kpi_cards,
-
-        products_note,
-
-        dbc.Row(
+        create_inner_tabs(
             [
-                dbc.Col(create_chart_card(product_share_fig), md=6),
-                dbc.Col(create_chart_card(product_paid_avg_fig), md=6)
-            ],
-            className="g-3",
-            style={"marginBottom": "24px"}
-        ),
-
-        dbc.Row(
-            [
-                dbc.Col(create_chart_card(payment_type_fig), md=6),
-                dbc.Col(create_chart_card(product_payment_fig), md=6)
-            ],
-            className="g-3",
-            style={"marginBottom": "24px"}
-        ),
-
-        dbc.Row(
-            [
-                dbc.Col(create_chart_card(product_education_fig), md=12)
-            ],
-            className="g-3",
-            style={"marginBottom": "24px"}
-        ),
-
-        dbc.Row(
-            [
-                dbc.Col(create_table_card(product_table, page_size=10), md=12)
-            ],
-            className="g-3"
+                dbc.Tab(
+                    label="Products",
+                    children=[
+                        products_kpi_cards,
+                        dbc.Row(
+                            [
+                                dbc.Col(create_chart_card(product_share_fig), md=6),
+                                dbc.Col(create_chart_card(product_paid_avg_fig), md=6)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                ),
+                dbc.Tab(
+                    label="Payment Types",
+                    children=[
+                        products_note,
+                        dbc.Row(
+                            [
+                                dbc.Col(create_chart_card(payment_type_fig), md=5),
+                                dbc.Col(create_chart_card(product_payment_fig), md=7)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                ),
+                dbc.Tab(
+                    label="Education Type",
+                    children=[
+                        dbc.Row(
+                            [
+                                dbc.Col(create_chart_card(product_education_fig), md=12)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                ),
+                dbc.Tab(
+                    label="Details",
+                    children=[
+                        dbc.Row(
+                            [
+                                dbc.Col(create_table_card(product_table, page_size=10), md=12)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                )
+            ]
         )
     ]
 )
 
+
 unit_note = dbc.Alert(
     [
         html.Div(
-            "Ограничение продуктовой UNIT-экономики",
+            "Product Unit Economics Limitation",
             style={
                 "fontWeight": "700",
                 "color": COLORS["text"],
@@ -2780,8 +2914,8 @@ unit_note = dbc.Alert(
             }
         ),
         html.Div(
-            "В графиках UNIT-экономики показаны только продукты с клиентами в расчётной базе: Digital Marketing, UX/UI Design и Web Developer. "
-            "Data Analytics и Find yourself in IT не включены в сценарный анализ, так как по ним нет клиентов, соответствующих условиям расчёта.",
+            "Unit economics charts include only products with clients in the calculation base: Digital Marketing, UX/UI Design and Web Developer. "
+            "Data Analytics and Find yourself in IT are not included in the scenario analysis because they have no clients matching the calculation conditions.",
             style={
                 "color": COLORS["muted_text"],
                 "fontSize": "13px",
@@ -2796,16 +2930,16 @@ unit_note = dbc.Alert(
         "backgroundColor": COLORS["card"],
         "boxShadow": "0 2px 8px rgba(0, 0, 0, 0.04)",
         "padding": "14px 16px",
-        "marginBottom": "24px"
+        "marginBottom": "16px"
     }
 )
 
 unit_table_display = unit_economics_display.copy()
 
 unit_table_display = unit_table_display.rename(columns={
-    "Product": "Продукт",
+    "Product": "Product",
     "UA": "UA",
-    "B": "Клиенты",
+    "B": "Clients",
     "C1, %": "C1, %",
     "AC": "AC",
     "CPA": "CPA",
@@ -2822,10 +2956,10 @@ unit_table_display = unit_table_display.rename(columns={
     "ROMI, %": "ROMI, %"
 })
 
-# В таблице сначала показываю продукты с клиентами и выручкой, а продукты без расчётной базы оставляю внизу
+# Show products with clients and revenue first; products without a calculation base remain at the bottom
 
-unit_table_display["Клиенты"] = pd.to_numeric(
-    unit_table_display["Клиенты"],
+unit_table_display["Clients"] = pd.to_numeric(
+    unit_table_display["Clients"],
     errors="coerce"
 ).fillna(0)
 
@@ -2839,7 +2973,7 @@ unit_table_display["CM"] = pd.to_numeric(
     errors="coerce"
 ).fillna(0)
 
-unit_table_display["Has Clients"] = unit_table_display["Клиенты"] > 0
+unit_table_display["Has Clients"] = unit_table_display["Clients"] > 0
 
 unit_table_display = unit_table_display.sort_values(
     by=["Has Clients", "Revenue_I", "CM"],
@@ -2849,7 +2983,7 @@ unit_table_display = unit_table_display.sort_values(
 unit_table_intro = html.Div(
     [
         html.H4(
-            "Детализация UNIT-экономики по продуктам",
+            "Product-level Unit Economics Details",
             style={
                 "color": COLORS["text"],
                 "fontWeight": "700",
@@ -2857,9 +2991,9 @@ unit_table_intro = html.Div(
             }
         ),
         html.P(
-            "Таблица показывает расчётные показатели UNIT-экономики по каждому продукту: UA, клиентов, C1, затраты на привлечение, "
-            "CAC, расчётную выручку, CLTV, LTV, CM и ROMI. Продукты без клиентов в расчётной базе сохранены в таблице как ограничение данных, "
-            "но не используются в сценарном анализе точки роста.",
+            "The table shows calculated unit economics metrics by product: UA, clients, C1, acquisition cost, "
+            "CAC, calculated revenue, CLTV, LTV, CM and ROMI. Products without clients in the calculation base are kept in the table as a data limitation, "
+            "but are not used in the growth-point scenario analysis.",
             style={
                 "color": COLORS["muted_text"],
                 "fontSize": "14px",
@@ -2874,56 +3008,72 @@ unit_table_intro = html.Div(
 unit_tab = html.Div(
     [
         create_section_header(
-            "UNIT-экономика",
-            "Вкладка показывает общую UNIT-экономику проекта, экономику основных продуктов, точку роста и параметры HADI-гипотезы."
-        ),
-        unit_kpi_cards,
-        unit_kpi_cards_2,
-        unit_note,
-        dbc.Row(
-            [
-                dbc.Col(create_chart_card(unit_revenue_cm_fig), md=6),
-                dbc.Col(create_chart_card(cac_cltv_fig), md=6)
-            ],
-            className="g-3",
-            style={"marginBottom": "24px"}
-        ),
-        dbc.Row(
-            [
-                dbc.Col(create_chart_card(cm_growth_fig), md=8),
-                dbc.Col(experiment_card, md=4)
-            ],
-            className="g-3",
-            style={"marginBottom": "24px"}
+            "Unit Economics",
+            "This tab shows overall project unit economics, product-level unit economics, the main growth point and HADI hypothesis parameters."
         ),
 
-        unit_table_intro,
-
-        dbc.Row(
+        create_inner_tabs(
             [
-                dbc.Col(create_table_card(unit_table_display, page_size=10), md=12)
-            ],
-            className="g-3"
+                dbc.Tab(
+                    label="Overall Metrics",
+                    children=[
+                        unit_kpi_cards,
+                        unit_kpi_cards_2,
+                        dbc.Row(
+                            [
+                                dbc.Col(create_chart_card(unit_revenue_cm_fig), md=6),
+                                dbc.Col(create_chart_card(cac_cltv_fig), md=6)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                ),
+                dbc.Tab(
+                    label="Growth Point",
+                    children=[
+                        unit_note,
+                        dbc.Row(
+                            [
+                                dbc.Col(create_chart_card(cm_growth_fig), md=8),
+                                dbc.Col(experiment_card, md=4)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                ),
+                dbc.Tab(
+                    label="Details",
+                    children=[
+                        unit_table_intro,
+                        dbc.Row(
+                            [
+                                dbc.Col(create_table_card(unit_table_display, page_size=10), md=12)
+                            ],
+                            className="g-3"
+                        )
+                    ]
+                )
+            ]
         )
     ]
 )
 
 
-# Настройка Dash-приложения
+# Dash app setup
 
 app = Dash(
     __name__,
     external_stylesheets=[dbc.themes.BOOTSTRAP]
 )
 
-app.title = "Dashboard эффективности онлайн-школы"
+app.title = "Online School Performance Dashboard"
 
 app.layout = dbc.Container(
     [
         html.Div(
             [
                 html.H1(
-                    "Dashboard эффективности онлайн-школы",
+                    "Online School Performance Dashboard",
                     style={
                         "color": COLORS["text"],
                         "fontWeight": "800",
@@ -2931,28 +3081,28 @@ app.layout = dbc.Container(
                     }
                 ),
                 html.P(
-                    "Интерактивный dashboard для анализа продаж, маркетинга, продуктов и UNIT экономики онлайн-школы.",
+                    "Interactive dashboard for analyzing online school sales, marketing, products and unit economics.",
                     style={
                         "color": COLORS["muted_text"],
                         "fontSize": "16px",
-                        "marginBottom": "24px"
+                        "marginBottom": "16px"
                     }
                 )
             ],
-            style={"paddingTop": "24px"}
+            style={"paddingTop": "16px"}
         ),
 
         dcc.Tabs(
             id="dashboard-tabs",
             value="overview",
             children=[
-                dcc.Tab(label="Обзор", value="overview", children=overview_tab),
-                dcc.Tab(label="Маркетинг", value="marketing", children=marketing_tab),
-                dcc.Tab(label="Продажи", value="sales", children=sales_tab),
-                dcc.Tab(label="Продукты", value="products", children=products_tab),
-                dcc.Tab(label="UNIT-экономика", value="unit", children=unit_tab)
+                dcc.Tab(label="Overview", value="overview", children=overview_tab),
+                dcc.Tab(label="Marketing", value="marketing", children=marketing_tab),
+                dcc.Tab(label="Sales", value="sales", children=sales_tab),
+                dcc.Tab(label="Products", value="products", children=products_tab),
+                dcc.Tab(label="Unit Economics", value="unit", children=unit_tab)
             ],
-            style={"marginBottom": "24px"}
+            style={"marginBottom": "16px"}
         )
     ],
     fluid=True,
@@ -2961,12 +3111,12 @@ app.layout = dbc.Container(
         "minHeight": "100vh",
         "paddingLeft": "28px",
         "paddingRight": "28px",
-        "paddingBottom": "28px"
+        "paddingBottom": "20px"
     }
 )
 
 
-# Запуск приложения
+# Run the app
 
 if __name__ == "__main__":
     app.run(debug=True)
