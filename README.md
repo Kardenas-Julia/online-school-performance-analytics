@@ -80,6 +80,13 @@ Main processed files include:
 
 Additional output tables are used for unit economics, growth scenarios and dashboard visualizations.
 
+## Documentation
+
+The `docs/` folder contains supporting project documentation:
+
+- `data_dictionary_en.xlsx` — editable data dictionary with field descriptions, data types, valid values, cleaning rules and analysis usage notes.
+- `data_dictionary_en.pdf` — PDF version for quick review.
+
 ## Key Business Rules
 
 Several business rules were defined before analysis:
